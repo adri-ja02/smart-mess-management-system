@@ -2,21 +2,11 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-    },
+    name: { type: String, required: true },
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
+    email: { type: String, required: true, unique: true },
 
-    password: {
-      type: String,
-      required: true,
-    },
+    password: { type: String, required: true },
 
     role: {
       type: String,
@@ -24,18 +14,16 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    phone: {
+    approvalStatus: {
       type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
     },
 
-    profileImage: {
+    accountStatus: {
       type: String,
-      default: "",
-    },
-
-    isVerified: {
-      type: Boolean,
-      default: false,
+      enum: ["active", "blocked"],
+      default: "active",
     },
   },
   { timestamps: true }

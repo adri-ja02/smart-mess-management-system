@@ -1,0 +1,212 @@
+/* Google Font */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background: #f4f7fb;
+  color: #222;
+}
+
+
+/* Smooth */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Links */
+a {
+  text-decoration: none;
+}
+
+/* Container */
+.container {
+  max-width: 1200px;
+}
+
+/* Navbar */
+.navbar {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.nav-link {
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.nav-link:hover {
+  color: #ffd54f !important;
+}
+
+/* Cards */
+.card {
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn {
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 8px rgba(13, 110, 253, 0.2);
+}
+
+/* Tables */
+.table {
+  background: white;
+}
+
+.table th {
+  background: #0d6efd;
+  color: white;
+  vertical-align: middle;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+  border-radius: 16px;
+  color: white;
+  padding: 25px;
+  transition: 0.3s;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-6px);
+}
+
+.dashboard-blue {
+  background: linear-gradient(135deg, #0d6efd, #3b82f6);
+}
+
+.dashboard-green {
+  background: linear-gradient(135deg, #198754, #20c997);
+}
+
+.dashboard-orange {
+  background: linear-gradient(135deg, #fd7e14, #ffc107);
+}
+
+.dashboard-red {
+  background: linear-gradient(135deg, #dc3545, #ff6b6b);
+}
+
+/* Alerts */
+.alert {
+  border-radius: 10px;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 20px;
+  color: #777;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar-brand {
+    font-size: 18px;
+  }
+
+  .dashboard-card {
+    margin-bottom: 20px;
+  }
+
+  .card {
+    margin: 10px;
+  }
+}
+
+/* ==========================
+   AUTH PAGE CUSTOM STYLES
+========================== */
+
+body {
+  background: linear-gradient(135deg, #0d6efd, #6f42c1);
+}
+
+/* Auth card animation */
+.auth-card {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Title */
+.auth-title {
+  font-weight: 700;
+  color: #0d6efd;
+}
+
+.auth-subtitle {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* Center login card nicely */
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+}
+
+/* Card enhancement */
+.auth-card .card {
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Button hover improvement */
+.btn-primary {
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
