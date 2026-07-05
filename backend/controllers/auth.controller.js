@@ -10,7 +10,6 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Check existing user
     const userExists = await User.findOne({ email });
 
     if (userExists) {
@@ -19,21 +18,17 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Only fixed emails can register as admin
     if (role === "admin" && !ADMIN_EMAILS.includes(email)) {
       return res.status(403).json({
         message: "This email is not authorized to register as Admin.",
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Manager approval status
     const approvalStatus =
       role === "manager" ? "pending" : "approved";
 
-    // Create user
     const user = await User.create({
       name,
       email,
@@ -52,6 +47,7 @@ const registerUser = async (req, res) => {
       accountStatus: user.accountStatus,
       token: generateToken(user._id),
     });
+
   } catch (error) {
     return res.status(500).json({
       message: error.message,
@@ -64,9 +60,9 @@ const registerUser = async (req, res) => {
 ========================= */
 const loginUser = async (req, res) => {
   try {
+
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -75,8 +71,10 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Password check
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isMatch) {
       return res.status(400).json({
@@ -84,7 +82,6 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Fixed admin email validation
     if (
       user.role === "admin" &&
       !ADMIN_EMAILS.includes(user.email)
@@ -94,7 +91,6 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Manager approval
     if (
       user.role === "manager" &&
       user.approvalStatus !== "approved"
@@ -104,7 +100,6 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Account blocked
     if (user.accountStatus === "blocked") {
       return res.status(403).json({
         message: "Your account has been blocked.",
@@ -120,6 +115,7 @@ const loginUser = async (req, res) => {
       accountStatus: user.accountStatus,
       token: generateToken(user._id),
     });
+
   } catch (error) {
     return res.status(500).json({
       message: error.message,
@@ -132,6 +128,7 @@ const loginUser = async (req, res) => {
 ========================= */
 const getProfile = async (req, res) => {
   try {
+
     const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
@@ -141,6 +138,54 @@ const getProfile = async (req, res) => {
     }
 
     return res.json(user);
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+/* =========================
+   CHANGE PASSWORD
+========================= */
+const changePassword = async (req, res) => {
+  try {
+
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Current password is incorrect",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      newPassword,
+      10
+    );
+
+    user.password = hashedPassword;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password changed successfully",
+    });
+
   } catch (error) {
     return res.status(500).json({
       message: error.message,
@@ -152,4 +197,5 @@ module.exports = {
   registerUser,
   loginUser,
   getProfile,
+  changePassword,
 };

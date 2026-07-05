@@ -20,16 +20,33 @@ function ManagerDashboard() {
 
         <h5>Welcome, {user?.name}</h5>
 
-        <p>Email: {user?.email}</p>
+        <p>
+          <strong>Email:</strong> {user?.email}
+        </p>
 
-        <p>Status: {user?.approvalStatus}</p>
+        <p>
+          <strong>Status:</strong> {user?.approvalStatus}
+        </p>
 
-        <button
-          className="btn btn-danger mt-3"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
+        <div className="d-flex gap-2 mt-3">
+
+          {/* My Profile */}
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate("/profile")}
+          >
+            My Profile
+          </button>
+
+          {/* Logout */}
+          <button
+            className="btn btn-danger"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+
+        </div>
 
       </div>
     </div>

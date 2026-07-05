@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
+const path = require("path");
 
 // Load env
 dotenv.config();
@@ -16,17 +17,18 @@ const app = express();
 ========================= */
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* =========================
    ROUTES
 ========================= */
 const authRoutes = require("./routes/auth.routes");
+const adminRoutes = require("./routes/admin.routes");
+const profileRoutes = require("./routes/profile.routes");
 
 app.use("/api/auth", authRoutes);
-
-const adminRoutes = require("./routes/admin.routes");
-
 app.use("/api/admin", adminRoutes);
+app.use("/api/profile", profileRoutes);
 
 /* =========================
    TEST ROUTE
