@@ -1,9 +1,30 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import RoomCard from "../components/RoomCard";
+import roomService from "../services/roomService";
 
 function ManagerDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRooms();
+  }, []);
+
+  const loadRooms = async () => {
+    try {
+      const res = await roomService.getRooms();
+      setRooms(res.data.rooms);
+    } catch (error) {
+      console.log("Room loading error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -12,42 +33,84 @@ function ManagerDashboard() {
 
   return (
     <div className="container mt-5">
-      <div className="card shadow p-4">
+      <div className="card shadow-lg border-0">
+        <div className="card-body p-5">
 
-        <h2>Manager Dashboard</h2>
+          {/* HEADER */}
+          <div className="text-center mb-4">
+            <h2 className="fw-bold">Manager Dashboard</h2>
+            <p className="text-muted">
+              Smart Student Mess Management System
+            </p>
+          </div>
 
-        <hr />
+          <hr />
 
-        <h5>Welcome, {user?.name}</h5>
+          {/* MANAGER INFO */}
+          <div className="mb-4">
+            <h5>Welcome, {user?.name}</h5>
+            <p>
+              <strong>Email:</strong> {user?.email}
+            </p>
+            <p>
+              <strong>Status:</strong> {user?.approvalStatus}
+            </p>
+            <p>
+              <strong>Role:</strong> {user?.role}
+            </p>
+          </div>
 
-        <p>
-          <strong>Email:</strong> {user?.email}
-        </p>
+          {/* ACCOUNT ACTIONS */}
+          <div className="d-flex gap-2 mb-4">
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate("/profile")}
+            >
+              My Profile
+            </button>
 
-        <p>
-          <strong>Status:</strong> {user?.approvalStatus}
-        </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate("/rooms")}
+            >
+              Open Room Management
+            </button>
+          </div>
 
-        <div className="d-flex gap-2 mt-3">
+          <hr />
 
-          {/* My Profile */}
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate("/profile")}
-          >
-            My Profile
-          </button>
+          {/* CREATED ROOMS */}
+          <h4 className="mb-4">Created Rooms</h4>
 
-          {/* Logout */}
-          <button
-            className="btn btn-danger"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
+          {loading ? (
+            <div className="text-center">
+              <div className="spinner-border" role="status"></div>
+              <p className="mt-2">Loading rooms...</p>
+            </div>
+          ) : (
+            <div className="row">
+              {rooms.length > 0 ? (
+                rooms.map((room) => (
+                  <RoomCard key={room._id} room={room} />
+                ))
+              ) : (
+                <div className="col-12">
+                  <div className="alert alert-info">
+                    No rooms created yet
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LOGOUT */}
+          <div className="mt-4">
+            <button className="btn btn-danger" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
 
         </div>
-
       </div>
     </div>
   );

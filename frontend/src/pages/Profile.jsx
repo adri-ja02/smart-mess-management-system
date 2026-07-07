@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { getProfile } from "../services/authService";
-import { updateProfile } from "../services/profileService";
+import {
+  getProfile,
+  updateProfile,
+} from "../services/profileService";
 import ProfileForm from "../components/ProfileForm";
 
 const Profile = () => {
@@ -16,54 +18,53 @@ const Profile = () => {
   }, []);
 
   const loadProfile = async () => {
-  try {
-    const res = await getProfile();
+    try {
+      const res = await getProfile();
 
-    console.log("Profile API Response:", res);
+      setProfile({
+        name: res.user.name,
+        email: res.user.email,
+        profilePhoto: res.user.profilePhoto,
+        notificationPreference:
+          res.user.notificationPreference,
+      });
+    } catch (error) {
+      console.log(error);
+      alert("Failed to load profile");
+    }
+  };
 
-    setProfile({
-      name: res.name || "",
-      email: res.email || "",
-      profilePhoto: res.profilePhoto || "",
-      notificationPreference: res.notificationPreference ?? true,
-    });
-  } catch (error) {
-    console.log(error);
-    alert("Failed to load profile");
-  }
-};
   const handleChange = (e) => {
+    if (e.target.type === "file") {
+      setProfile({
+        ...profile,
+        profilePhoto: e.target.files[0],
+      });
+      return;
+    }
 
-  if (e.target.type === "file") {
+    const { name, value, checked, type } = e.target;
 
     setProfile({
       ...profile,
-      profilePhoto: e.target.files[0],
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
     });
-
-    return;
-  }
-
-  const { name, value, checked, type } = e.target;
-
-  setProfile({
-    ...profile,
-    [name]:
-      type === "checkbox"
-        ? checked
-        : value,
-  });
-
-};
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       await updateProfile(profile);
+
       alert("Profile Updated Successfully");
+
+      loadProfile();
     } catch (error) {
-      console.error(error);
+      console.log(error);
       alert("Failed to update profile");
     }
   };

@@ -1,0 +1,110 @@
+const mongoose = require("mongoose");
+
+const roomSchema = new mongoose.Schema(
+  {
+    building: {
+      name: { type: String, required: true, trim: true },
+    },
+    floor: {
+      number: { type: Number, required: true },
+    },
+    roomNumber: { type: String, required: true, trim: true },
+    messLocation: { type: String, required: true, trim: true },
+    rent: { type: Number, required: true, min: 0 },
+    // ✅ Archive flag — frontend "Delete Room" sets this to true.
+    // Room stays in the DB, but is excluded from all normal queries,
+    // and its roomNumber becomes reusable by a new active room.
+    isArchived: { type: Boolean, default: false },
+    totalArea: { type: Number, default: 0, min: 0 },
+    usableArea: { type: Number, default: 0, min: 0 },
+    storage: { type: String, default: "" },
+    bathroomType: {
+      type: String,
+      enum: ["Shared", "Attached"],
+      required: true,
+    },
+    amenities: { type: [String], default: [] },
+    utilityPolicy: { type: String, default: "" },
+    images: [
+      {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
+      },
+    ],
+    naturalLightLevel: {
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Medium",
+    },
+    ventilationNotes: { type: String, default: "" },
+    layout: {
+      roomWidth: { type: Number, default: 0, min: 0 },
+      roomLength: { type: Number, default: 0, min: 0 },
+      bedPositions: { type: [String], default: [] },
+      deskPositions: { type: [String], default: [] },
+      wardrobePositions: { type: [String], default: [] },
+    },
+    beds: [
+      {
+        bedNumber: { type: String, required: true, trim: true },
+        position: String,
+        occupied: { type: Boolean, default: false },
+        // ✅ Archive flag — frontend "Delete Bed" sets this to true.
+        // Bed stays in the array, but is excluded from occupancy counts
+        // and duplicate-number checks, so its bedNumber becomes reusable.
+        isArchived: { type: Boolean, default: false },
+      },
+    ],
+    currentOccupancy: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
+/* ----------------------------------------------------------------
+   PRE-SAVE: occupancy recalculation + active bedNumber uniqueness.
+   Combined into a single hook since both operate on the same
+   `this.beds` array — avoids walking it twice per save.
+------------------------------------------------------------------- */
+roomSchema.pre("save", function (next) {
+  const activeBeds = this.beds.filter((b) => !b.isArchived);
+
+  // Recalculate occupancy — only active, occupied beds count.
+  this.currentOccupancy = activeBeds.filter((b) => b.occupied).length;
+
+  // Enforce bedNumber uniqueness — only among active beds.
+  // Archived beds are excluded, so a new bed can reuse a number
+  // that an archived bed once had.
+  const activeBedNumbers = activeBeds.map((b) => b.bedNumber);
+  const hasDuplicate =
+    new Set(activeBedNumbers).size !== activeBedNumbers.length;
+
+  if (hasDuplicate) {
+    return next(
+      new Error("Duplicate bedNumber found among active (non-archived) beds.")
+    );
+  }
+
+  next();
+});
+
+/* ----------------------------------------------------------------
+   ROOM NUMBER UNIQUENESS — only among ACTIVE (non-archived) rooms
+   within the same building. Enforced as a partial unique index at
+   the DB level (race-condition safe, unlike an in-app check).
+   Archived rooms fall outside this index, so their roomNumber
+   becomes reusable by a new active room in the same building.
+------------------------------------------------------------------- */
+roomSchema.index(
+  { "building.name": 1, roomNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isArchived: false },
+  }
+);
+
+/* ----------------------------------------------------------------
+   Useful secondary indexes for common queries.
+------------------------------------------------------------------- */
+roomSchema.index({ isArchived: 1 }); // speeds up getRooms({ isArchived: false })
+
+module.exports = mongoose.model("Room", roomSchema);

@@ -7,16 +7,19 @@ function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate("/"); // FIXED (was /auth)
+    navigate("/auth");
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+    <nav
+      className="navbar navbar-expand-lg navbar-dark shadow"
+      style={{ background: "#6D597A" }}
+    >
       <div className="container">
 
         {/* BRAND */}
         <Link className="navbar-brand fw-bold" to="/">
-          Smart Student Mess Management System
+           Smart Student Mess and SpaceFit Room Allocation System
         </Link>
 
         {/* MOBILE TOGGLER */}
@@ -61,11 +64,18 @@ function Navbar() {
 
                 {/* MANAGER */}
                 {user.role === "manager" && (
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/manager">
-                      Dashboard
-                    </Link>
-                  </li>
+                  <>
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/manager">
+                        Dashboard
+                      </Link>
+                    </li>
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/rooms">
+                        Room Management
+                      </Link>
+                    </li>
+                  </>
                 )}
 
                 {/* ADMIN */}
@@ -79,9 +89,7 @@ function Navbar() {
 
                 {/* USER INFO */}
                 <li className="nav-item">
-                  <span className="nav-link">
-                    👤 {user.name}
-                  </span>
+                  <span className="nav-link">👤 {user.name}</span>
                 </li>
 
                 {/* LOGOUT */}

@@ -25,10 +25,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const profileRoutes = require("./routes/profile.routes");
+const roomRoutes = require("./routes/room.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/rooms", roomRoutes);
 
 /* =========================
    TEST ROUTE

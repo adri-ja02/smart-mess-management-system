@@ -37,6 +37,21 @@ const userSchema = new mongoose.Schema(
     },
 
     // =========================
+    // Sadia - Room Management
+    // =========================
+
+    currentRoom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+      default: null,
+    },
+
+    currentBed: {
+      type: String,
+      default: null,
+    },
+
+    // =========================
     // Adrija - Profile Management
     // =========================
 
@@ -49,20 +64,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-
-    // =========================
-    // Adrija - Forgot Password
-    // =========================
-
-    resetPasswordToken: {
-      type: String,
-    },
-
-    resetPasswordExpire: {
-      type: Date,
-    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 module.exports = mongoose.model("User", userSchema);

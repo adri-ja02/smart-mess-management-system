@@ -4,17 +4,45 @@ const ProfileForm = ({
   profile,
   handleChange,
   handleSubmit,
-  handleImageChange,
 }) => {
+
+  const imageSrc =
+    profile.profilePhoto instanceof File
+      ? URL.createObjectURL(profile.profilePhoto)
+      : profile.profilePhoto;
+
   return (
     <form onSubmit={handleSubmit}>
+
+      {/* Profile Photo */}
+      <div className="text-center mb-4">
+
+        <img
+          src={
+            imageSrc ||
+            "https://via.placeholder.com/150"
+          }
+          alt="Profile"
+          width="150"
+          height="150"
+          className="rounded-circle border"
+          style={{
+            objectFit: "cover",
+          }}
+        />
+
+      </div>
+
       {/* Name */}
       <div className="mb-3">
-        <label className="form-label">Name</label>
+        <label className="form-label">
+          Name
+        </label>
+
         <input
-          className="form-control"
           type="text"
           name="name"
+          className="form-control"
           value={profile.name}
           onChange={handleChange}
         />
@@ -22,50 +50,38 @@ const ProfileForm = ({
 
       {/* Email */}
       <div className="mb-3">
-        <label className="form-label">Email</label>
+        <label className="form-label">
+          Email
+        </label>
+
         <input
-          className="form-control"
           type="email"
+          className="form-control"
           value={profile.email}
           disabled
         />
       </div>
-      {profile.profilePhoto &&
- typeof profile.profilePhoto === "string" && (
-  <img
-    src={`http://localhost:5000/uploads/${profile.profilePhoto}`}
-    alt="Profile"
-    width="150"
-    className="mb-3 rounded-circle"
-  />
-)}
-      {/* Profile Picture */}
+
+      {/* Upload */}
       <div className="mb-3">
-        <label className="form-label">Upload Profile Picture</label>
+
+        <label className="form-label">
+          Upload Profile Picture
+        </label>
+
         <input
           type="file"
-          className="form-control"
-          accept="image/*"
           name="profilePhoto"
-          onChange={handleImageChange}
+          accept="image/*"
+          className="form-control"
+          onChange={handleChange}
         />
+
       </div>
 
-      {/* Show uploaded image if available */}
-      {profile.profilePhoto && (
-        <div className="mb-3 text-center">
-          <img
-            src={profile.profilePhoto}
-            alt="Profile"
-            width="120"
-            height="120"
-            className="rounded-circle border"
-          />
-        </div>
-      )}
-
-      {/* Notification Preference */}
+      {/* Notification */}
       <div className="form-check mb-3">
+
         <input
           className="form-check-input"
           type="checkbox"
@@ -77,10 +93,11 @@ const ProfileForm = ({
         <label className="form-check-label">
           Enable Notifications
         </label>
+
       </div>
 
-      {/* Buttons */}
       <div className="d-flex gap-2">
+
         <button
           type="submit"
           className="btn btn-primary"
@@ -94,7 +111,9 @@ const ProfileForm = ({
         >
           Change Password
         </Link>
+
       </div>
+
     </form>
   );
 };
