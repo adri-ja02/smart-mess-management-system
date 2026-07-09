@@ -64,6 +64,30 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // =========================
+    // Maliha - Resident Onboarding
+    // =========================
+
+    universityId: {
+      type: String,
+      default: "",
+    },
+
+    emergencyContact: {
+      type: String,
+      default: "",
+    },
+
+    moveInDate: {
+      type: Date,
+      default: null,
+    },
+
+    onboardingStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },    
   },
   {
     timestamps: true,
