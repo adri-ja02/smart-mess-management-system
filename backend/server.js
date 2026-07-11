@@ -26,11 +26,21 @@ const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const profileRoutes = require("./routes/profile.routes");
 const roomRoutes = require("./routes/room.routes");
+const onboardingRoutes = require("./routes/onboarding.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/onboarding", onboardingRoutes);
+
+const spaceFitRoutes=require("./routes/spaceFit.routes");
+
+
+app.use(
+"/api/spacefit",
+spaceFitRoutes
+);
 
 /* =========================
    TEST ROUTE
