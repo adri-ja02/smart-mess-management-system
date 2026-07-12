@@ -24,7 +24,6 @@ const UPDATABLE_ROOM_FIELDS = [
   "ventilationNotes",
   "layout",
   "images",
-  "roomImages",
 ];
 
 function pick(obj, keys) {
@@ -196,50 +195,24 @@ exports.uploadRoomImage = async (req, res) => {
     const uploaded = [];
 
     for (const file of req.files) {
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: "room-images",
-      });
+      const result =
+        await cloudinary.uploader.upload(
+          file.path
+        );
 
       uploaded.push({
         url: result.secure_url,
-        publicId: result.public_id,
         public_id: result.public_id,
       });
 
       fs.unlink(file.path, () => {});
     }
 
-    if (req.params.id) {
-      if (!req.user || !["manager", "admin"].includes(req.user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized",
-        });
-      }
-
-      const room = await Room.findById(req.params.id);
-
-      if (!room) {
-        return res.status(404).json({
-          success: false,
-          message: "Room not found",
-        });
-      }
-
-      room.images = [...(room.images || []), ...uploaded];
-      await room.save();
-
-      return res.json({
-        success: true,
-        urls: uploaded,
-        room,
-      });
-    }
-
     res.json({
       success: true,
       urls: uploaded,
     });
+
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -263,10 +236,13 @@ exports.deleteRoomImage = async (req, res) => {
       });
     }
 
-    await cloudinary.uploader.destroy(public_id);
+    await cloudinary.uploader.destroy(
+      public_id
+    );
 
     room.images = room.images.filter(
-      (img) => img.publicId !== public_id && img.public_id !== public_id
+      (img) =>
+        img.public_id !== public_id
     );
 
     await room.save();

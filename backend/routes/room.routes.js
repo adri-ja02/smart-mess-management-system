@@ -15,7 +15,6 @@ const {
   updateBed,
   archiveBed,
 } = require("../controllers/room.controller");
-const { protect } = require("../middleware/auth.middleware");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
@@ -37,14 +36,6 @@ router.patch("/:id/archive", archiveRoom);
 
 router.post(
   "/upload",
-  protect,
-  upload.array("images", 10),
-  uploadRoomImage
-);
-
-router.post(
-  "/:id/images",
-  protect,
   upload.array("images", 10),
   uploadRoomImage
 );

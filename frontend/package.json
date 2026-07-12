@@ -13,6 +13,7 @@
     "cloudinary": "^1.41.3",
     "dotenv": "^17.4.2",
     "leaflet": "^1.9.4",
+    "leaflet-routing-machine": "^3.2.12",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
     "react": "^18.3.1",
