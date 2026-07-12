@@ -9,6 +9,7 @@ const RoomEdit = () => {
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [images, setImages] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -21,10 +22,7 @@ const RoomEdit = () => {
   // ===========================
   // LOAD ROOM
   // ===========================
-  useEffect(() => {
-    loadRoom();
-  }, [id]);
-
+  
   const loadRoom = async () => {
     try {
       const res = await roomService.getRoom(id);
@@ -35,6 +33,10 @@ const RoomEdit = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadRoom();
+  }, [id]);
 
   // ===========================
   // BASIC INPUT
@@ -73,12 +75,37 @@ const RoomEdit = () => {
         formData.append("images", img);
       });
 
-      const res = await roomService.uploadImage(formData);
+      const res = await roomService.uploadImage(id, formData);
 
       return res.data.urls || [];
     } catch (err) {
       console.log(err);
       return [];
+    }
+  };
+
+  const handleUploadImages = async () => {
+    if (images.length === 0) return;
+
+    setUploadingImages(true);
+    setErrorMessage("");
+
+    try {
+      const uploaded = await uploadPhotos();
+
+      if (uploaded.length > 0) {
+        setRoom((prev) => ({
+          ...prev,
+          images: [...(prev.images || []), ...uploaded],
+        }));
+      }
+
+      setImages([]);
+    } catch (err) {
+      console.log(err);
+      setErrorMessage("Image upload failed.");
+    } finally {
+      setUploadingImages(false);
     }
   };
 
@@ -412,6 +439,14 @@ const RoomEdit = () => {
           {errorMessage && (
             <div className="text-danger mb-3">{errorMessage}</div>
           )}
+
+          <button
+            className="btn btn-outline-primary btn-sm mb-3"
+            onClick={handleUploadImages}
+            disabled={images.length === 0 || uploadingImages}
+          >
+            {uploadingImages ? "Uploading..." : "Upload Selected Images"}
+          </button>
 
           {/* PREVIEW OF NEWLY SELECTED IMAGES */}
           {images.length > 0 && (

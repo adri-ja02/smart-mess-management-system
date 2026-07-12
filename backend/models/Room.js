@@ -10,6 +10,15 @@ const roomSchema = new mongoose.Schema(
     },
     roomNumber: { type: String, required: true, trim: true },
     messLocation: { type: String, required: true, trim: true },
+    coordinates: {
+      // Sample coordinates near the default campus keep existing rooms map-ready.
+      lat: { type: Number, default: 23.7815 },
+      lng: { type: Number, default: 90.4080 },
+    },
+    campusCoordinates: {
+      lat: { type: Number, default: 23.7806 },
+      lng: { type: Number, default: 90.4070 },
+    },
     rent: { type: Number, required: true, min: 0 },
     // ✅ Archive flag — frontend "Delete Room" sets this to true.
     // Room stays in the DB, but is excluded from all normal queries,
@@ -27,10 +36,13 @@ const roomSchema = new mongoose.Schema(
     utilityPolicy: { type: String, default: "" },
     images: [
       {
-        url: { type: String, required: true },
-        public_id: { type: String, required: true },
+        url: { type: String, default: "" },
+        publicId: { type: String, default: "" },
+        // Kept for existing Cloudinary uploads already stored with this key.
+        public_id: { type: String, default: "" },
       },
     ],
+    noiseLevel: { type: Number, min: 1, max: 5, default: 3 },
     naturalLightLevel: {
       type: String,
       enum: ["Low", "Medium", "High"],
@@ -40,7 +52,7 @@ const roomSchema = new mongoose.Schema(
     layout: {
       roomWidth: { type: Number, default: 0, min: 0 },
       roomLength: { type: Number, default: 0, min: 0 },
-      bedPositions: { type: [String], default: [] },
+      bedPositions: { type: [mongoose.Schema.Types.Mixed], default: [] },
       deskPositions: { type: [String], default: [] },
       wardrobePositions: { type: [String], default: [] },
     },
@@ -57,8 +69,18 @@ const roomSchema = new mongoose.Schema(
     ],
     currentOccupancy: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+// `images` is retained for existing manager/image-upload code. This alias exposes
+// the Module 1 roomImages field without duplicating the stored image data.
+roomSchema.virtual("roomImages")
+  .get(function getRoomImages() {
+    return this.images;
+  })
+  .set(function setRoomImages(images) {
+    this.images = images;
+  });
 
 /* ----------------------------------------------------------------
    PRE-SAVE: occupancy recalculation + active bedNumber uniqueness.

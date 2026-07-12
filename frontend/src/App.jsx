@@ -8,10 +8,15 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import Profile from "./pages/Profile";
-import ChangePassword from "./pages/ChangePassword"; // ✅ NEW
+import ChangePassword from "./pages/ChangePassword";
+
 import RoomManagement from "./pages/RoomManagement";
 import RoomDetails from "./pages/RoomDetails";
 import RoomEdit from "./pages/RoomEdit";
+
+import LivingNeeds from "./pages/LivingNeeds";
+import SpaceFitExplorer from "./pages/SpaceFitExplorer";
+
 
 function App() {
   return (
@@ -19,13 +24,22 @@ function App() {
       <Navbar />
 
       <div className="container mt-4">
+
         <Routes>
 
           {/* DEFAULT ROUTE */}
-          <Route path="/" element={<Navigate to="/auth" />} />
+          <Route
+            path="/"
+            element={<Navigate to="/auth" />}
+          />
+
 
           {/* AUTH */}
-          <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/auth"
+            element={<Auth />}
+          />
+
 
           {/* CHANGE PASSWORD */}
           <Route
@@ -37,6 +51,7 @@ function App() {
             }
           />
 
+
           {/* STUDENT DASHBOARD */}
           <Route
             path="/student"
@@ -46,6 +61,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
 
           {/* MANAGER DASHBOARD */}
           <Route
@@ -57,6 +73,7 @@ function App() {
             }
           />
 
+
           {/* ADMIN DASHBOARD */}
           <Route
             path="/admin"
@@ -66,6 +83,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
 
           {/* PROFILE */}
           <Route
@@ -77,6 +95,7 @@ function App() {
             }
           />
 
+
           {/* ROOM MANAGEMENT */}
           <Route
             path="/rooms"
@@ -87,8 +106,13 @@ function App() {
             }
           />
 
+
           {/* ROOM DETAILS */}
-          <Route path="/rooms/:id" element={<RoomDetails />} />
+          <Route
+            path="/rooms/:id"
+            element={<RoomDetails />}
+          />
+
 
           {/* ROOM EDIT */}
           <Route
@@ -99,6 +123,27 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+
+          {/* MODULE 1 - SPACE FIT */}
+          <Route
+            path="/living-needs"
+            element={
+              <ProtectedRoute role="student">
+                <LivingNeeds />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/spacefit"
+            element={
+              <ProtectedRoute role="student">
+                <SpaceFitExplorer />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* 404 */}
           <Route
@@ -111,6 +156,7 @@ function App() {
           />
 
         </Routes>
+
       </div>
     </>
   );

@@ -1,139 +1,356 @@
-const User = require("../models/User");
+﻿const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const cloudinary = require("../utils/cloudinary");
 const fs = require("fs");
+
 
 // ===============================
 // Get Profile
 // ===============================
 exports.getProfile = async (req, res) => {
+
   try {
+
     const user = await User.findById(req.user.id)
       .select("-password")
       .populate("currentRoom");
 
+
     if (!user) {
+
       return res.status(404).json({
-        success: false,
-        message: "User not found",
+        success:false,
+        message:"User not found"
       });
+
     }
 
+
     res.status(200).json({
-      success: true,
-      user,
+
+      success:true,
+      user
+
     });
 
-  } catch (error) {
+
+  } catch(error) {
+
+
+    console.log("GET PROFILE ERROR:", error);
+
+
     res.status(500).json({
-      success: false,
-      message: error.message,
+
+      success:false,
+      message:error.message
+
     });
+
+
   }
+
 };
+
+
+
+
 
 // ===============================
 // Update Profile
 // ===============================
-exports.updateProfile = async (req, res) => {
+exports.updateProfile = async (req,res)=>{
+
+
+  console.log("\n========== UPDATE PROFILE ==========");
+
+  console.log("BODY:", req.body);
+
+  console.log("FILE:", req.file);
+
+
+
+  let uploadedFile = null;
+
+
+
   try {
+
+
     const user = await User.findById(req.user.id);
 
-    if (!user) {
+
+
+    if(!user){
+
+
       return res.status(404).json({
-        success: false,
-        message: "User not found",
+
+        success:false,
+
+        message:"User not found"
+
       });
+
+
     }
 
-    // Update name
-    if (req.body.name) {
+
+
+
+
+    // ===============================
+    // Update Name
+    // ===============================
+
+    if(req.body.name){
+
       user.name = req.body.name;
+
     }
 
-    // Update notification preference
-    if (req.body.notificationPreference !== undefined) {
+
+
+
+
+    // ===============================
+    // Update Notification
+    // ===============================
+
+    if(req.body.notificationPreference !== undefined){
+
       user.notificationPreference =
         req.body.notificationPreference === "true";
+
     }
 
-    // Upload profile photo to Cloudinary
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "SmartMess/ProfilePhotos",
-      });
 
-      user.profilePhoto = result.secure_url;
 
-      // Delete temporary local file
-      fs.unlinkSync(req.file.path);
+
+
+
+
+
+    // ===============================
+    // Upload Profile Image
+    // ===============================
+
+    if(req.file){
+      uploadedFile = req.file.path;
+
+      console.log("Uploading file:", uploadedFile);
+
+      if(!process.env.CLOUDINARY_CLOUD_NAME ||
+         !process.env.CLOUDINARY_API_KEY ||
+         !process.env.CLOUDINARY_API_SECRET){
+        user.profilePhoto = `/uploads/${req.file.filename}`;
+      } else {
+        try {
+          const result = await cloudinary.uploader.upload(uploadedFile, {
+            folder: "SmartMess/ProfilePhotos",
+            resource_type: "image",
+            transformation: [
+              {
+                width: 500,
+                height: 500,
+                crop: "limit",
+              },
+            ],
+          });
+
+          console.log("Cloudinary Upload Success:");
+          console.log(result.secure_url);
+
+          user.profilePhoto = result.secure_url;
+        } catch (uploadError) {
+          console.log("Cloudinary Upload Error:", uploadError.message);
+          user.profilePhoto = `/uploads/${req.file.filename}`;
+        }
+      }
+
+      if (fs.existsSync(uploadedFile)) {
+        fs.unlinkSync(uploadedFile);
+      }
     }
+
+
+
+
+
+    // ===============================
+    // Save Database
+    // ===============================
 
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      user,
+
+
+    const updatedUser =
+      await User.findById(req.user.id)
+      .select("-password");
+
+
+
+
+
+    console.log(
+      "PROFILE UPDATED SUCCESSFULLY"
+    );
+
+
+
+
+
+    return res.status(200).json({
+
+      success:true,
+
+      message:
+      "Profile updated successfully",
+
+      user:updatedUser
+
     });
 
-  } catch (error) {
-    // Delete temporary file if an error occurs
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+
+
+
+
+
+  } catch(error){
+
+
+
+    console.log(
+      "========== PROFILE UPDATE ERROR =========="
+    );
+
+
+    console.log(error);
+
+
+
+    // remove temp file if failed
+
+    if(uploadedFile && fs.existsSync(uploadedFile)){
+
+      fs.unlinkSync(uploadedFile);
+
     }
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
+
+
+
+
+    return res.status(500).json({
+
+      success:false,
+
+      message:error.message
+
     });
+
+
+
   }
+
+
 };
+
+
+
+
+
+
 
 // ===============================
 // Change Password
 // ===============================
-exports.changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
+exports.changePassword = async(req,res)=>{
 
-    const user = await User.findById(req.user.id);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+try{
 
-    // Check current password
-    const isMatch = await bcrypt.compare(
-      currentPassword,
-      user.password
-    );
 
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password is incorrect",
-      });
-    }
+const {
+currentPassword,
+newPassword
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+}=req.body;
 
-    await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: "Password changed successfully",
-    });
 
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+const user =
+await User.findById(req.user.id);
+
+
+
+if(!user){
+
+return res.status(404).json({
+
+success:false,
+
+message:"User not found"
+
+});
+
+}
+
+
+
+
+const isMatch =
+await bcrypt.compare(
+currentPassword,
+user.password
+);
+
+
+
+if(!isMatch){
+
+return res.status(400).json({
+
+success:false,
+
+message:"Current password is incorrect"
+
+});
+
+}
+
+
+
+const hashedPassword = await bcrypt.hash(
+newPassword,
+10
+);
+
+
+user.password = hashedPassword;
+
+
+await user.save();
+
+
+return res.status(200).json({
+
+message:"Password changed successfully"
+
+});
+
+
+} catch(error){
+
+return res.status(500).json({
+
+success:false,
+
+message:error.message
+
+});
+
+}
+
 };

@@ -1,33 +1,67 @@
 const express = require("express");
+
 const router = express.Router();
+
+
 const upload = require("../middleware/upload.middleware");
 
+
 const {
-  getProfile,
-  updateProfile,
-  changePassword,
+    getProfile,
+    updateProfile,
+    changePassword
 
-} = require("../controllers/profile.controller");
+}=require("../controllers/profile.controller");
 
-const { protect } = require("../middleware/auth.middleware");
 
-// Profile
-router.get("/", protect, getProfile);
-
-// Update Profile
-//router.put("/update", protect, updateProfile);
-
-// Change Password
-router.put("/change-password", protect, changePassword);
+const {
+    protect
+}=require("../middleware/auth.middleware");
 
 
 
-//upload profile picture
-router.put(
-  "/update",
-  protect,
-  upload.single("profilePhoto"),
-  updateProfile
+
+
+router.get(
+    "/",
+    protect,
+    getProfile
 );
+
+
+
+
+
+router.put(
+    "/update",
+    protect,
+    (req, res, next) => {
+        upload.single("profilePhoto")(req, res, (err) => {
+            if (err) {
+                console.log("MULTER ERROR:", err.message);
+                return res.status(400).json({
+                    success: false,
+                    message: err.message,
+                });
+            }
+            next();
+        });
+    },
+    updateProfile
+);
+
+
+
+
+
+router.put(
+    "/change-password",
+    protect,
+    changePassword
+);
+
+
+
+
 
 module.exports = router;

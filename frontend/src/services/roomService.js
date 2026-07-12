@@ -25,8 +25,8 @@ const roomService = {
     axios.patch(`${API}/${id}/beds/${bedId}/archive`),
 
   // ================= IMAGES =================
-  uploadImage: (formData) =>
-    axios.post(`${API}/upload`, formData, {
+  uploadImage: (roomId, formData) =>
+    axios.post(`${API}/${roomId}/images`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

@@ -87,7 +87,23 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "approved", "rejected"],
       default: "pending",
-    },    
+    },
+
+    // =========================
+    // SpaceFit preferences
+    // =========================
+
+    spaceFitPreferences: {
+      studySpace: { type: Number, default: 0 },
+      storage: { type: Number, default: 0 },
+      privacy: { type: Number, default: 0 },
+      budget: { type: Number, default: 0 },
+      roommateCount: { type: Number, default: 0 },
+      noiseTolerance: { type: Number, default: 0 },
+      preferredFloor: { type: Number, default: 0 },
+      moveInDate: { type: Date, default: null },
+      maxCampusTravelTime: { type: Number, default: 0 },
+    },
   },
   {
     timestamps: true,

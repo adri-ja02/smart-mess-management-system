@@ -67,6 +67,14 @@ function StudentDashboard() {
             >
               👤 My Profile
             </button>
+
+            {/* Module 1 - SpaceFit */}
+            <button
+              className="btn btn-outline-primary"
+              onClick={() => navigate("/living-needs")}
+            >
+              🏠 Find SpaceFit Rooms
+            </button>
           </div>
 
           {/* FEATURE CARD */}

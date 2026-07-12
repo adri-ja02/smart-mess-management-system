@@ -1,6 +1,7 @@
 const fs = require("fs");
 const Room = require("../models/Room");
 const cloudinary = require("../utils/cloudinary");
+const { withFallbackLayout } = require("../utils/roomLayout");
 
 /* ================= SAFE ROOM FIELDS ================= */
 
@@ -9,10 +10,13 @@ const UPDATABLE_ROOM_FIELDS = [
   "floor",
   "roomNumber",
   "messLocation",
+  "coordinates",
+  "campusCoordinates",
   "rent",
   "totalArea",
   "usableArea",
   "storage",
+  "noiseLevel",
   "bathroomType",
   "amenities",
   "utilityPolicy",
@@ -20,6 +24,7 @@ const UPDATABLE_ROOM_FIELDS = [
   "ventilationNotes",
   "layout",
   "images",
+  "roomImages",
 ];
 
 function pick(obj, keys) {
@@ -39,7 +44,7 @@ exports.createRoom = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      room,
+      room: withFallbackLayout(room.toObject()),
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -63,11 +68,11 @@ exports.getRooms = async (req, res) => {
   try {
     const rooms = await Room.find({
       isArchived: false,
-    }).sort("-createdAt");
+    }).sort("-createdAt").lean();
 
     res.json({
       success: true,
-      rooms,
+      rooms: rooms.map(withFallbackLayout),
     });
   } catch (err) {
     res.status(500).json({
@@ -90,14 +95,14 @@ exports.getRoomById = async (req, res) => {
       });
     }
 
-    // Hide archived beds automatically
-    room.beds = room.beds.filter(
-      (bed) => !bed.isArchived
-    );
+    const responseRoom = withFallbackLayout({
+      ...room.toObject(),
+      beds: room.beds.filter((bed) => !bed.isArchived),
+    });
 
     res.json({
       success: true,
-      room,
+      room: responseRoom,
     });
 
   } catch (err) {
@@ -191,24 +196,50 @@ exports.uploadRoomImage = async (req, res) => {
     const uploaded = [];
 
     for (const file of req.files) {
-      const result =
-        await cloudinary.uploader.upload(
-          file.path
-        );
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "room-images",
+      });
 
       uploaded.push({
         url: result.secure_url,
+        publicId: result.public_id,
         public_id: result.public_id,
       });
 
       fs.unlink(file.path, () => {});
     }
 
+    if (req.params.id) {
+      if (!req.user || !["manager", "admin"].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized",
+        });
+      }
+
+      const room = await Room.findById(req.params.id);
+
+      if (!room) {
+        return res.status(404).json({
+          success: false,
+          message: "Room not found",
+        });
+      }
+
+      room.images = [...(room.images || []), ...uploaded];
+      await room.save();
+
+      return res.json({
+        success: true,
+        urls: uploaded,
+        room,
+      });
+    }
+
     res.json({
       success: true,
       urls: uploaded,
     });
-
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -232,13 +263,10 @@ exports.deleteRoomImage = async (req, res) => {
       });
     }
 
-    await cloudinary.uploader.destroy(
-      public_id
-    );
+    await cloudinary.uploader.destroy(public_id);
 
     room.images = room.images.filter(
-      (img) =>
-        img.public_id !== public_id
+      (img) => img.publicId !== public_id && img.public_id !== public_id
     );
 
     await room.save();
