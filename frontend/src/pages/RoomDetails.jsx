@@ -4,10 +4,17 @@ import CampusRouteMap from "../components/CampusRouteMap";
 import RoomLayout from "../components/RoomLayout";
 import roomService from "../services/roomService";
 import { bedSelectionKey, getSelectedBedId, saveSelectedBedId } from "../utils/bedSelection";
+import { useAuth } from "../context/AuthContext"; // adjust path to match your project
 
 const RoomDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isStudent = user?.role === "student";
+  const isManager = user?.role === "manager";
+  const canSelect = isStudent || isManager; // both can select an available bed
+  const canDeselect = isManager; // only manager can free up a selected bed
+
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedBedId, setSelectedBedId] = useState(null);
@@ -39,9 +46,25 @@ const RoomDetails = () => {
   const activeBeds = (room.beds || []).filter((bed) => !bed.isArchived);
   const occupiedBeds = activeBeds.filter((bed) => bed.occupied).length;
   const roomImages = room.roomImages?.length ? room.roomImages : room.images || [];
+
   const selectBed = (bed) => {
     if (bed.occupied) return;
+
     const bedId = bedSelectionKey(bed);
+    const isSelected = selectedBedId === bedId;
+
+    if (isSelected) {
+      // Only a manager can free up an already-selected bed
+      if (!canDeselect) return;
+
+      setSelectedBedId(null);
+      saveSelectedBedId(room._id, null);
+      return;
+    }
+
+    // Students and managers can select an available bed
+    if (!canSelect) return;
+
     setSelectedBedId(bedId);
     saveSelectedBedId(room._id, bedId);
   };
@@ -105,13 +128,27 @@ const RoomDetails = () => {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light"><tr><th>Bed Number</th><th>Position</th><th>Status</th></tr></thead>
               <tbody>
-                {activeBeds.map((bed, index) => (
-                  <tr key={bed._id || index} className={selectedBedId === bedSelectionKey(bed) ? "table-primary" : ""}>
-                    <td>{bed.bedNumber}</td>
-                    <td>{bed.position || "-"}</td>
-                    <td><span className={`badge ${bed.occupied ? "bg-danger" : selectedBedId === bedSelectionKey(bed) ? "bg-primary" : "bg-success"}`}>{bed.occupied ? "Occupied" : selectedBedId === bedSelectionKey(bed) ? "Selected" : "Available"}</span></td>
-                  </tr>
-                ))}
+                {activeBeds.map((bed, index) => {
+                  const isSelected = selectedBedId === bedSelectionKey(bed);
+                  const clickable = !bed.occupied && ((isSelected && canDeselect) || (!isSelected && canSelect));
+
+                  return (
+                    <tr
+                      key={bed._id || index}
+                      className={isSelected ? "table-primary" : ""}
+                      style={clickable ? { cursor: "pointer" } : undefined}
+                      onClick={() => selectBed(bed)}
+                    >
+                      <td>{bed.bedNumber}</td>
+                      <td>{bed.position || "-"}</td>
+                      <td>
+                        <span className={`badge ${bed.occupied ? "bg-danger" : isSelected ? "bg-primary" : "bg-success"}`}>
+                          {bed.occupied ? "Occupied" : isSelected ? "Selected" : "Available"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : <div className="alert alert-info">No beds available.</div>}

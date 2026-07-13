@@ -66,6 +66,7 @@ const profileRoutes = require("./routes/profile.routes");
 const roomRoutes = require("./routes/room.routes");
 const onboardingRoutes = require("./routes/onboarding.routes");
 const spaceFitRoutes = require("./routes/spaceFit.routes");
+const reservationRoutes = require("./routes/reservation.routes");
 
 
 
@@ -104,7 +105,7 @@ app.use(
   spaceFitRoutes
 );
 
-
+app.use("/api/reservations", reservationRoutes);
 
 
 
