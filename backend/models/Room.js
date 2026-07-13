@@ -36,10 +36,8 @@ const roomSchema = new mongoose.Schema(
     utilityPolicy: { type: String, default: "" },
     images: [
       {
-        url: { type: String, default: "" },
-        publicId: { type: String, default: "" },
-        // Kept for existing Cloudinary uploads already stored with this key.
-        public_id: { type: String, default: "" },
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
       },
     ],
     noiseLevel: { type: Number, min: 1, max: 5, default: 3 },
@@ -69,18 +67,8 @@ const roomSchema = new mongoose.Schema(
     ],
     currentOccupancy: { type: Number, default: 0 },
   },
-  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
+  { timestamps: true }
 );
-
-// `images` is retained for existing manager/image-upload code. This alias exposes
-// the Module 1 roomImages field without duplicating the stored image data.
-roomSchema.virtual("roomImages")
-  .get(function getRoomImages() {
-    return this.images;
-  })
-  .set(function setRoomImages(images) {
-    this.images = images;
-  });
 
 /* ----------------------------------------------------------------
    PRE-SAVE: occupancy recalculation + active bedNumber uniqueness.
