@@ -2,21 +2,52 @@ const mongoose = require("mongoose");
 
 const waitlistSchema = new mongoose.Schema(
   {
+    // Student waiting for a bed
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    budget: Number,
+    // Room the student wanted
+    room: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+      required: true,
+    },
 
-    roommatePreference: String,
+    // Preferences (from Living Needs Profile)
+    budget: {
+      type: Number,
+      required: true,
+    },
 
-    spacePreference: String,
+    roommatePreference: {
+      type: String,
+      default: "",
+    },
 
+    spacePreference: {
+      type: String,
+      default: "",
+    },
+
+    // Waiting status
     status: {
       type: String,
+      enum: ["waiting", "matched", "allocated"],
       default: "waiting",
+    },
+
+    // Notification
+    notified: {
+      type: Boolean,
+      default: false,
+    },
+
+    notificationMessage: {
+      type: String,
+      default: "",
     },
   },
   {
@@ -24,7 +55,4 @@ const waitlistSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "Waitlist",
-  waitlistSchema
-);
+module.exports = mongoose.model("Waitlist", waitlistSchema);

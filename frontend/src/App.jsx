@@ -16,7 +16,9 @@ import RoomEdit from "./pages/RoomEdit";
 
 import LivingNeeds from "./pages/LivingNeeds";
 import SpaceFitExplorer from "./pages/SpaceFitExplorer";
-
+import MyReservations from "./pages/MyReservations";
+import PendingReservations from "./pages/PendingReservations";
+import Waitlist from "./pages/Waitlist";
 
 function App() {
   return (
@@ -72,6 +74,39 @@ function App() {
               </ProtectedRoute>
             }
           />
+         
+        <Route
+  path="/my-reservations"
+  element={
+    <ProtectedRoute role="student">
+      <MyReservations />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/pending-reservations"
+  element={
+    <ProtectedRoute role="manager">
+      <PendingReservations />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/waitlist"
+  element={
+    <ProtectedRoute role="student">
+      <Waitlist />
+    </ProtectedRoute>
+  }
+/>
+
+
+
+
+
+
 
 
           {/* ADMIN DASHBOARD */}
@@ -134,6 +169,26 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
+           <Route
+            path="/my-reservations"
+            element={
+              <ProtectedRoute role="student">
+                <MyReservations />
+             </ProtectedRoute>
+            }
+          />
+
+          <Route
+          path="/pending-reservations"
+           element={
+             <ProtectedRoute role="manager">
+               <PendingReservations />
+             </ProtectedRoute>
+             }
+            />
+
+
 
           <Route
             path="/spacefit"

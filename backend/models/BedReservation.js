@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const bedReservationSchema = new mongoose.Schema(
+const reservationSchema = new mongoose.Schema(
   {
     student: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,14 +15,24 @@ const bedReservationSchema = new mongoose.Schema(
     },
 
     bedNumber: {
-      type: Number,
+      type: String,
       required: true,
     },
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: [
+        "pending",     // Temporary Hold
+        "approved",    // Allocated
+        "rejected",
+        "cancelled",
+      ],
       default: "pending",
+    },
+
+    holdExpiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 10 * 60 * 1000), //10 minutes
     },
 
     approvedBy: {
@@ -31,9 +41,14 @@ const bedReservationSchema = new mongoose.Schema(
       default: null,
     },
 
-    holdUntil: {
+    approvedAt: {
       type: Date,
-      default: () => new Date(Date.now() + 15 * 60 * 1000),
+      default: null,
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
     },
   },
   {
@@ -41,7 +56,4 @@ const bedReservationSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "BedReservation",
-  bedReservationSchema
-);
+module.exports = mongoose.model("BedReservation", reservationSchema);

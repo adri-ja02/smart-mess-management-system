@@ -5,8 +5,17 @@ const User = require("../models/User");
    PROTECT ROUTE MIDDLEWARE
 ========================= */
 const protect = async (req, res, next) => {
-  try {
-    let token;
+    try {
+
+        console.log("===============");
+        console.log(req.headers.authorization);
+
+        let token;
+
+
+//const protect = async (req, res, next) => {
+  //try {
+    //let token;
 
     // Check Authorization header
     if (

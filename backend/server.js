@@ -3,6 +3,8 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const path = require("path");
+const waitlistRoutes = require("./routes/waitlist.routes");
+
 
 
 // Load env
@@ -17,7 +19,7 @@ connectDB();
 const app = express();
 
 
-
+app.use("/api/waitlist", waitlistRoutes);
 
 /* =========================
    MIDDLEWARE
@@ -67,7 +69,11 @@ const roomRoutes = require("./routes/room.routes");
 const onboardingRoutes = require("./routes/onboarding.routes");
 const spaceFitRoutes = require("./routes/spaceFit.routes");
 const reservationRoutes = require("./routes/reservation.routes");
+const analyticsRoutes = require("./routes/analytics.routes");
 
+
+
+app.use("/api/analytics", analyticsRoutes);
 
 
 app.use(

@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 import RoomCard from "../components/RoomCard";
 import roomService from "../services/roomService";
+import { Link } from "react-router-dom";
 
 function ManagerDashboard() {
   const navigate = useNavigate();
@@ -61,23 +62,32 @@ function ManagerDashboard() {
           </div>
 
           {/* ACCOUNT ACTIONS */}
-          <div className="d-flex gap-2 mb-4">
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate("/profile")}
-            >
-              My Profile
-            </button>
+<div className="d-flex flex-wrap gap-2 mb-4">
 
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate("/rooms")}
-            >
-              Open Room Management
-            </button>
-          </div>
+  <button
+    className="btn btn-primary"
+    onClick={() => navigate("/profile")}
+  >
+    👤 My Profile
+  </button>
 
-          <hr />
+  <button
+    className="btn btn-success"
+    onClick={() => navigate("/rooms")}
+  >
+    🏠 Room Management
+  </button>
+
+  <Link
+    to="/pending-reservations"
+    className="btn btn-warning"
+  >
+    📋 Pending Reservations
+  </Link>
+
+</div>
+
+<hr />
 
           {/* CREATED ROOMS */}
           <h4 className="mb-4">Created Rooms</h4>

@@ -55,16 +55,35 @@ const roomSchema = new mongoose.Schema(
       wardrobePositions: { type: [String], default: [] },
     },
     beds: [
-      {
-        bedNumber: { type: String, required: true, trim: true },
-        position: String,
-        occupied: { type: Boolean, default: false },
-        // ✅ Archive flag — frontend "Delete Bed" sets this to true.
-        // Bed stays in the array, but is excluded from occupancy counts
-        // and duplicate-number checks, so its bedNumber becomes reusable.
-        isArchived: { type: Boolean, default: false },
-      },
-    ],
+  {
+    bedNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    position: String,
+
+    status: {
+      type: String,
+      enum: ["available", "held", "occupied"],
+      default: "available",
+    },
+
+    occupied: {
+      type: Boolean,
+      default: false,
+    },
+
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+  },
+],
+
+
+  
     currentOccupancy: { type: Number, default: 0 },
   },
   { timestamps: true }
@@ -79,7 +98,9 @@ roomSchema.pre("save", function (next) {
   const activeBeds = this.beds.filter((b) => !b.isArchived);
 
   // Recalculate occupancy — only active, occupied beds count.
-  this.currentOccupancy = activeBeds.filter((b) => b.occupied).length;
+  this.currentOccupancy = activeBeds.filter(
+  (b) => b.occupied
+).length;
 
   // Enforce bedNumber uniqueness — only among active beds.
   // Archived beds are excluded, so a new bed can reuse a number
