@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+ import { Routes, Route, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -19,6 +19,7 @@ import SpaceFitExplorer from "./pages/SpaceFitExplorer";
 import MyReservations from "./pages/MyReservations";
 import PendingReservations from "./pages/PendingReservations";
 import Waitlist from "./pages/Waitlist";
+import MealPlanner from "./pages/MealPlanner";
 
 function App() {
   return (
@@ -74,7 +75,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-         
+
         <Route
   path="/my-reservations"
   element={
@@ -101,6 +102,7 @@ function App() {
     </ProtectedRoute>
   }
 />
+
 
 
 
@@ -169,7 +171,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
            <Route
             path="/my-reservations"
             element={
@@ -198,6 +200,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* MODULE 2 - MEAL PLANNER */}
+          <Route
+            path="/meal-planner"
+            element={
+               <ProtectedRoute>
+                  <MealPlanner />
+               </ProtectedRoute>
+            }
+          />
+
+
 
 
           {/* 404 */}

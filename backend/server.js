@@ -99,6 +99,9 @@ const analyticsRoutes =
 const waitlistRoutes =
     require("./routes/waitlist.routes");
 
+const mealPlannerRoutes =
+    require("./routes/mealPlanner.routes");
+
 
 // ===========================================================
 // API ROUTES
@@ -155,6 +158,11 @@ app.use(
 app.use(
     "/api/waitlist",
     waitlistRoutes
+);
+
+app.use(
+    "/api/meal-planner",
+    mealPlannerRoutes
 );
 
 

@@ -77,7 +77,14 @@ function Navbar() {
                     </li>
                   </>
                 )}
-
+                {/* MODULE 2 - MEAL PLANNER */}
+                {(user.role === "student" || user.role === "manager") && (
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/meal-planner">
+                      Meal Planner
+                    </Link>
+                  </li>
+                )}
                 {/* ADMIN */}
                 {user.role === "admin" && (
                   <li className="nav-item">
