@@ -43,6 +43,65 @@ const isValidId = (id) => {
 };
 
 // ===========================================================
+// HELPER - VALIDATE APPLICANT DETAILS
+//
+// Every new reservation request must include this info so the
+// manager has enough context to review it. Kept in one place
+// so the required-field list can't drift between the route
+// validation and the schema's own `required: true` fields.
+// ===========================================================
+
+const REQUIRED_APPLICANT_FIELDS = [
+    "fullName",
+    "address",
+    "phone",
+    "email",
+    "institutionName",
+    "studentId",
+    "bloodGroup",
+    "fatherName",
+    "fatherPhone",
+    "motherName",
+    "motherPhone",
+];
+
+const VALID_BLOOD_GROUPS = [
+    "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-",
+];
+
+const validateApplicantDetails = (applicantDetails) => {
+    if (!applicantDetails || typeof applicantDetails !== "object") {
+        return "Applicant details are required.";
+    }
+
+    for (const field of REQUIRED_APPLICANT_FIELDS) {
+        const value = applicantDetails[field];
+
+        if (typeof value !== "string" || !value.trim()) {
+            return `Applicant details are incomplete: "${field}" is required.`;
+        }
+    }
+
+    if (!VALID_BLOOD_GROUPS.includes(applicantDetails.bloodGroup)) {
+        return "Applicant details contain an invalid blood group.";
+    }
+
+    return null;
+};
+
+// Trims every field down to just the values we accept, so
+// nothing extra in req.body.applicantDetails gets persisted.
+const sanitizeApplicantDetails = (applicantDetails) => {
+    const sanitized = {};
+
+    for (const field of REQUIRED_APPLICANT_FIELDS) {
+        sanitized[field] = String(applicantDetails[field]).trim();
+    }
+
+    return sanitized;
+};
+
+// ===========================================================
 // HELPER - CHECK ACTIVE REQUEST
 // ===========================================================
 
@@ -452,7 +511,7 @@ const expireStaleHolds =
 // ===========================================================
 
 const claimBedForMatchedStudent =
-    async (matchedEntry) => {
+    async (matchedEntry, applicantDetails) => {
 
         const studentId =
             matchedEntry.student;
@@ -600,6 +659,7 @@ const claimBedForMatchedStudent =
                     student: studentId,
                     room: roomId,
                     bedNumber,
+                    applicantDetails,
                     status: "pending",
                     holdExpiresAt:
                         new Date(
@@ -787,6 +847,24 @@ const requestReservation =
                         "A specific bed must be selected.",
                 });
             }
+
+            const applicantDetailsError =
+                validateApplicantDetails(
+                    req.body.applicantDetails
+                );
+
+            if (applicantDetailsError) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        applicantDetailsError,
+                });
+            }
+
+            const applicantDetails =
+                sanitizeApplicantDetails(
+                    req.body.applicantDetails
+                );
 
             // Process expired states.
             await expireStaleHolds();
@@ -1034,7 +1112,8 @@ const requestReservation =
             if (isCurrentMatchedStudent) {
                 const result =
                     await claimBedForMatchedStudent(
-                        priorityEntry
+                        priorityEntry,
+                        applicantDetails
                     );
 
                 return res
@@ -1096,6 +1175,8 @@ const requestReservation =
                             room._id,
 
                         bedNumber,
+
+                        applicantDetails,
 
                         status:
                             "pending",
@@ -1817,4 +1898,12 @@ module.exports = {
     // instead of redefining/hardcoding them.
     isValidId,
     WAITLIST_CLAIM_HOURS,
+
+    // Exported so waitlist.controller.js's claimMatchedBed
+    // validates/sanitizes applicantDetails the exact same
+    // way requestReservation does, instead of a second,
+    // possibly-drifting copy of the required-field list.
+    validateApplicantDetails,
+    sanitizeApplicantDetails,
 };
+

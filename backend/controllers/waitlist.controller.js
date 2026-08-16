@@ -8,6 +8,8 @@ const {
     claimBedForMatchedStudent,
     isValidId,
     WAITLIST_CLAIM_HOURS,
+    validateApplicantDetails,
+    sanitizeApplicantDetails,
 } = require("./reservation.controller");
 
 // ===========================================================
@@ -527,12 +529,40 @@ const claimMatchedBed =
             }
 
             // ------------------------------------------------
+            // APPLICANT DETAILS
+            //
+            // Required here too — this claim ultimately creates
+            // the same BedReservation document as a normal
+            // request, and the manager needs the same
+            // information to review it.
+            // ------------------------------------------------
+
+            const applicantDetailsError =
+                validateApplicantDetails(
+                    req.body.applicantDetails
+                );
+
+            if (applicantDetailsError) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        applicantDetailsError,
+                });
+            }
+
+            const applicantDetails =
+                sanitizeApplicantDetails(
+                    req.body.applicantDetails
+                );
+
+            // ------------------------------------------------
             // CREATE PENDING RESERVATION
             // ------------------------------------------------
 
             const result =
                 await claimBedForMatchedStudent(
-                    entry
+                    entry,
+                    applicantDetails
                 );
 
             return res

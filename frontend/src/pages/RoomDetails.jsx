@@ -6,7 +6,6 @@ import RoomLayout from "../components/RoomLayout";
 import roomService from "../services/roomService";
 
 import {
-  requestReservation,
   getMyReservations,
 } from "../services/reservationService";
 
@@ -494,47 +493,38 @@ const RoomDetails = () => {
       return;
     }
 
+    /*
+     * AVAILABLE BED
+     *
+     * Instead of reserving immediately, send the student to
+     * the bed request details form. The manager needs the
+     * applicant's info before approving/rejecting, so the
+     * actual requestReservation() call happens there once
+     * that form is submitted.
+     */
+
+    if (
+      !selectedBed.occupied &&
+      !selectedBed.onHold
+    ) {
+      navigate(
+        `/rooms/${room._id}/request-bed`,
+        {
+          state: {
+            bedNumber:
+              selectedBed.bedNumber,
+            roomNumber:
+              room.roomNumber,
+          },
+        }
+      );
+
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      /*
-       * AVAILABLE BED
-       *
-       * Send normal reservation request.
-       *
-       * Backend will atomically put it on hold.
-       */
-
-      if (
-        !selectedBed.occupied &&
-        !selectedBed.onHold
-      ) {
-        const res =
-          await requestReservation({
-            roomId: room._id,
-            bedNumber:
-              selectedBed.bedNumber,
-          });
-
-        alert(
-          res.message ||
-            "Request sent to the manager."
-        );
-
-        setHasActiveRequest(true);
-
-        setSelectedBedId(null);
-
-        saveSelectedBedId(
-          room._id,
-          null
-        );
-
-        await refreshRoom();
-
-        return;
-      }
-
       /*
        * OCCUPIED OR ON-HOLD BED
        *

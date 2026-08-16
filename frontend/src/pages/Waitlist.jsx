@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
     getWaitlist,
-    claimMatchedBed,
     cancelWaitlist,
 } from "../services/waitlistService";
 
 function Waitlist() {
+    const navigate = useNavigate();
+
     const [waitlist, setWaitlist] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actingId, setActingId] = useState(null);
@@ -116,39 +118,26 @@ function Waitlist() {
     // CLAIM BED
     // =======================================================
 
-    const handleClaim = async (item) => {
+    const handleClaim = (item) => {
         if (!canRequest(item)) {
             return;
         }
 
-        setActingId(
-            item._id
+        // The manager needs the student's info before
+        // approving/rejecting, so send them to the same
+        // details form used for a fresh bed request. Passing
+        // waitlistId tells RequestBedForm.jsx to call
+        // claimMatchedBed() instead of requestReservation().
+        navigate(
+            `/rooms/${item.room?._id}/request-bed`,
+            {
+                state: {
+                    bedNumber: item.bedNumber,
+                    roomNumber: item.room?.roomNumber,
+                    waitlistId: item._id,
+                },
+            }
         );
-
-        try {
-            const res =
-                await claimMatchedBed(
-                    item._id
-                );
-
-            alert(
-                res.message ||
-                "Reservation request sent to manager."
-            );
-
-            await loadWaitlist(false);
-
-        } catch (error) {
-            alert(
-                error.response?.data?.message ||
-                "You cannot request this bed yet."
-            );
-
-            await loadWaitlist(false);
-
-        } finally {
-            setActingId(null);
-        }
     };
 
     // =======================================================

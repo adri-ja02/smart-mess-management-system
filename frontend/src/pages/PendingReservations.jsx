@@ -10,6 +10,7 @@ function PendingReservations() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [detailsReservation, setDetailsReservation] = useState(null);
 
   useEffect(() => {
     loadReservations();
@@ -200,6 +201,15 @@ function PendingReservations() {
                     <td>
 
                       <button
+                        className="btn btn-outline-primary btn-sm me-2"
+                        onClick={() =>
+                          setDetailsReservation(r)
+                        }
+                      >
+                        View Details
+                      </button>
+
+                      <button
                         className="btn btn-success btn-sm me-2"
                         disabled={
                           processingId === r._id ||
@@ -240,6 +250,107 @@ function PendingReservations() {
           </table>
 
         </div>
+      )}
+
+      {/* =====================================================
+          APPLICANT DETAILS MODAL
+
+          Built manually (not data-bs-toggle="modal") since
+          only bootstrap's CSS is imported in index.js, not
+          its JS bundle — the built-in modal behavior would
+          silently do nothing.
+      ===================================================== */}
+
+      {detailsReservation && (
+        <>
+          <div
+            className="modal d-block"
+            tabIndex="-1"
+            role="dialog"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-scrollable" role="document">
+              <div className="modal-content">
+
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    Applicant Details
+                  </h5>
+
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() =>
+                      setDetailsReservation(null)
+                    }
+                  />
+                </div>
+
+                <div className="modal-body">
+                  {(() => {
+                    const details =
+                      detailsReservation.applicantDetails;
+
+                    if (!details) {
+                      return (
+                        <p className="text-muted mb-0">
+                          No applicant details were
+                          submitted with this request.
+                        </p>
+                      );
+                    }
+
+                    const rows = [
+                      ["Full Name", details.fullName],
+                      ["Email", details.email],
+                      ["Phone", details.phone],
+                      ["Address", details.address],
+                      ["Institution", details.institutionName],
+                      ["Student ID", details.studentId],
+                      ["Blood Group", details.bloodGroup],
+                      ["Father's Name", details.fatherName],
+                      ["Father's Phone", details.fatherPhone],
+                      ["Mother's Name", details.motherName],
+                      ["Mother's Phone", details.motherPhone],
+                    ];
+
+                    return (
+                      <table className="table table-sm table-borderless mb-0">
+                        <tbody>
+                          {rows.map(([label, value]) => (
+                            <tr key={label}>
+                              <th
+                                className="text-muted"
+                                style={{ width: "40%" }}
+                              >
+                                {label}
+                              </th>
+                              <td>{value || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() =>
+                      setDetailsReservation(null)
+                    }
+                  >
+                    Close
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
     </div>

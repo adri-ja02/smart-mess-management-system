@@ -17,6 +17,7 @@ import RoomEdit from "./pages/RoomEdit";
 import LivingNeeds from "./pages/LivingNeeds";
 import SpaceFitExplorer from "./pages/SpaceFitExplorer";
 import MyReservations from "./pages/MyReservations";
+import RequestBedForm from "./pages/RequestBedForm";
 import PendingReservations from "./pages/PendingReservations";
 import Waitlist from "./pages/Waitlist";
 import MealPlanner from "./pages/MealPlanner";
@@ -124,6 +125,16 @@ function App() {
 
           {/* ROOM DETAILS */}
           <Route path="/rooms/:id" element={<RoomDetails />} />
+
+          {/* BED REQUEST DETAILS FORM (student submits info for manager review) */}
+          <Route
+            path="/rooms/:id/request-bed"
+            element={
+              <ProtectedRoute role="student">
+                <RequestBedForm />
+              </ProtectedRoute>
+            }
+          />
 
           {/* ROOM EDIT */}
           <Route

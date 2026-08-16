@@ -1,5 +1,38 @@
 const mongoose = require("mongoose");
 
+// =========================
+// APPLICANT DETAILS
+//
+// Collected from the student at request time so the manager
+// has enough information to review the request before
+// approving/rejecting it. Required on every new reservation —
+// see requestReservation() in reservation.controller.js for
+// server-side validation of these fields.
+// =========================
+
+const applicantDetailsSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, required: true, trim: true },
+    address: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    email: { type: String, required: true, trim: true },
+    institutionName: { type: String, required: true, trim: true },
+    studentId: { type: String, required: true, trim: true },
+
+    bloodGroup: {
+      type: String,
+      required: true,
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+    },
+
+    fatherName: { type: String, required: true, trim: true },
+    fatherPhone: { type: String, required: true, trim: true },
+    motherName: { type: String, required: true, trim: true },
+    motherPhone: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
 const reservationSchema = new mongoose.Schema(
   {
     student: {
@@ -16,6 +49,15 @@ const reservationSchema = new mongoose.Schema(
 
     bedNumber: {
       type: String,
+      required: true,
+    },
+
+    // Snapshot of the student's info at the time of this
+    // specific request — intentionally NOT read from the
+    // User profile, since it can change after submission and
+    // the manager should review exactly what was submitted.
+    applicantDetails: {
+      type: applicantDetailsSchema,
       required: true,
     },
 
