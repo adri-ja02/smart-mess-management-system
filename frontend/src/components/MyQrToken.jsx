@@ -37,4 +37,3 @@ const MyQrToken = ({ mealToken }) => {
 };
 
 export default MyQrToken;
-

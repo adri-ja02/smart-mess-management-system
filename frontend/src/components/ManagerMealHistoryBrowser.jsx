@@ -55,8 +55,17 @@ const formatTime = (value) =>
    - getMealMenus() to resolve (date, mealType) -> MealMenu._id
    - getMealStatusGrid(mealMenuId) for the recorded + pending list
    No backend changes required.
+
+   FIX: accepts a `refreshSignal` prop — an incrementing counter owned by
+   the parent page (MealCheckIn.jsx) that changes whenever a check-in
+   mutation happens anywhere on the page (QR scan, manual check-in, status
+   edit, sweep). Previously this component only refetched when the
+   selected date/meal type changed, so a check-in done elsewhere on the
+   page (e.g. via the QR scanner) never showed up here until the manager
+   re-picked the same date/meal type. Including refreshSignal in the grid
+   effect's dependency array fixes that.
    ========================================================= */
-const ManagerMealHistoryBrowser = () => {
+const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
   const [menus, setMenus] = useState([]);
   const [menusLoading, setMenusLoading] = useState(true);
   const [menusError, setMenusError] = useState("");
@@ -154,7 +163,7 @@ const ManagerMealHistoryBrowser = () => {
     return () => {
       cancelled = true;
     };
-  }, [matchedMenu]);
+  }, [matchedMenu, refreshSignal]);
 
   const rows = useMemo(() => {
     const recorded = records.map((record) => ({

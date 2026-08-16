@@ -18,7 +18,16 @@ const statusLabel = {
 
 // If residentId is provided (manager view), fetches that resident's
 // history. Otherwise fetches the logged-in resident's own history.
-const MealHistoryList = ({ residentId, residentName }) => {
+//
+// FIX: accepts a `refreshSignal` prop — an incrementing counter owned by
+// the parent page (MealCheckIn.jsx) that changes whenever a check-in
+// mutation happens anywhere on the page (QR scan, manual check-in, status
+// edit, sweep). Previously this component only refetched when `residentId`
+// changed, so after a check-in the "Today's meal status" grid updated but
+// this history table kept showing stale data until the user navigated
+// away and back. Including refreshSignal in the effect's dependency array
+// makes it refetch every time a check-in happens, regardless of source.
+const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,7 +75,7 @@ const MealHistoryList = ({ residentId, residentName }) => {
     return () => {
       cancelled = true;
     };
-  }, [residentId]);
+  }, [residentId, refreshSignal]);
 
   const title = residentName
     ? `Resident Meal History — ${residentName}`

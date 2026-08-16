@@ -543,6 +543,15 @@ const MealCheckIn = () => {
   const [sweepMessage, setSweepMessage] = useState("");
   const loadInitialDataRef = useRef(() => {});
 
+  // FIX: shared "something changed" counter. Bumped after every check-in
+  // mutation (QR scan, manual check-in, status edit, sweep). MealHistoryList
+  // and ManagerMealHistoryBrowser both take this as a prop and include it
+  // in their fetch effects, so a check-in anywhere on this page refreshes
+  // every view that displays meal-record data — not just the "Today's
+  // meal status" grid, which was the only thing being refetched before.
+  const [refreshSignal, setRefreshSignal] = useState(0);
+  const bumpRefreshSignal = () => setRefreshSignal((v) => v + 1);
+
   // Guards against setState calls landing after this page has unmounted —
   // e.g. a visibilitychange/focus refetch that's still in flight when the
   // user navigates away.
@@ -671,11 +680,13 @@ const MealCheckIn = () => {
   const handleManualConfirm = async (mealTokenId, status) => {
     await manualCheckIn(mealTokenId, status);
     await loadGrid(selectedMenu?._id);
+    bumpRefreshSignal();
   };
 
   const handleEditRecord = async (recordId, status) => {
     await updateMealStatus(recordId, status);
     await loadGrid(selectedMenu?._id);
+    bumpRefreshSignal();
   };
 
   const handleSweepSkipped = async () => {
@@ -694,11 +705,20 @@ const MealCheckIn = () => {
       }
 
       await loadGrid(selectedMenu?._id);
+      bumpRefreshSignal();
     } catch (err) {
       setError(
         err.response?.data?.message || "Could not run the skipped-meal sweep"
       );
     }
+  };
+
+  // FIX: QR check-ins used to only trigger loadGrid() via onCheckedIn.
+  // Now also bumps refreshSignal so MealHistoryList / ManagerMealHistoryBrowser
+  // pick up the change.
+  const handleQrCheckedIn = () => {
+    loadGrid(selectedMenu?._id);
+    bumpRefreshSignal();
   };
 
   if (loading) {
@@ -789,7 +809,7 @@ const MealCheckIn = () => {
             </>
           )}
 
-          <MealHistoryList />
+          <MealHistoryList refreshSignal={refreshSignal} />
         </>
       )}
 
@@ -797,7 +817,7 @@ const MealCheckIn = () => {
         <>
           <div className="row g-4 mb-4">
             <div className="col-md-6">
-              <QrScanner onCheckedIn={() => loadGrid(selectedMenu?._id)} />
+              <QrScanner onCheckedIn={handleQrCheckedIn} />
             </div>
 
             <div className="col-md-6">
@@ -846,6 +866,7 @@ const MealCheckIn = () => {
             <MealHistoryList
               residentId={selectedResident._id}
               residentName={selectedResident.name}
+              refreshSignal={refreshSignal}
             />
           )}
 
@@ -854,7 +875,7 @@ const MealCheckIn = () => {
           {/* Read-only browser: any date, any meal type, every resident's
               record for that slot — separate from the live "today" grid
               above, which is scoped to check-in actions. */}
-          <ManagerMealHistoryBrowser />
+          <ManagerMealHistoryBrowser refreshSignal={refreshSignal} />
         </>
       )}
     </div>

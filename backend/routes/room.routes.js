@@ -1,54 +1,77 @@
-const mongoose = require("mongoose");
+const express = require("express");
+const router = express.Router();
 
-/*
-  A MealRecord is the CONSUMPTION OUTCOME of a single MealToken
-  (Maliha's Feature 1 model). One token -> at most one record.
-  This is what Feature 3 (forecasting/billing) reads from.
+const multer = require("multer");
 
-  NOTE: no changes needed here — no bugs found in this file.
-*/
-const mealRecordSchema = new mongoose.Schema(
-  {
-    mealToken: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MealToken",
-      required: true,
-      unique: true, // one consumption outcome per token — duplicate-check-in guard
-    },
-    resident: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    mealMenu: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MealMenu",
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ["collected", "skipped", "late"],
-      required: true,
-    },
-    method: {
-      type: String,
-      enum: ["QR", "Manual", "System"],
-      required: true,
-    },
-    checkInTime: {
-      type: Date,
-      default: null,
-    },
-    checkedInBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
-  { timestamps: true }
+const {
+  createRoom,
+  getRooms,
+  getRoomById,
+  updateRoom,
+  archiveRoom,
+  uploadRoomImage,
+  deleteRoomImage,
+  addBed,
+  updateBed,
+  archiveBed,
+} = require("../controllers/room.controller");
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) =>
+    cb(null, "uploads/"),
+
+  filename: (req, file, cb) =>
+    cb(
+      null,
+      Date.now() + "-" + file.originalname
+    ),
+});
+
+const upload = multer({ storage });
+
+/* ================= ROOM ================= */
+
+router.post("/", createRoom);
+
+router.get("/", getRooms);
+
+router.get("/:id", getRoomById);
+
+router.put("/:id", updateRoom);
+
+router.patch(
+  "/:id/archive",
+  archiveRoom
 );
 
-mealRecordSchema.index({ mealMenu: 1, status: 1 });
-mealRecordSchema.index({ resident: 1, createdAt: -1 });
+/* ================= IMAGES ================= */
 
-module.exports = mongoose.model("MealRecord", mealRecordSchema);
+router.post(
+  "/upload",
+  upload.array("images", 10),
+  uploadRoomImage
+);
+
+router.delete(
+  "/:id/images/:public_id",
+  deleteRoomImage
+);
+
+/* ================= BEDS ================= */
+
+router.post(
+  "/:id/beds",
+  addBed
+);
+
+router.put(
+  "/:id/beds/:bedId",
+  updateBed
+);
+
+router.patch(
+  "/:id/beds/:bedId/archive",
+  archiveBed
+);
+
+module.exports = router;
