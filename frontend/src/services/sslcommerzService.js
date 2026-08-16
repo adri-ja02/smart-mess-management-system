@@ -11,7 +11,7 @@ export const initiatePayment = async (
   return response.data;
 };
 
-// Get current payment status
+// Get current payment status (also carries overdue info)
 export const getPaymentStatus = async (
   billId
 ) => {

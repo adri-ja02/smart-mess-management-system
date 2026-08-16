@@ -25,6 +25,21 @@ const isToday = (dateValue) => {
   );
 };
 
+// FIX: "Upcoming" was previously just "not today," which meant a
+// confirmed token from a *past* date (e.g. an old menu that never got
+// swept) would incorrectly render under "Upcoming." This does a
+// day-only comparison (time-of-day/timezone-safe) so only meals whose
+// date is strictly after today count as upcoming.
+const isFutureDate = (dateValue) => {
+  const date = new Date(dateValue);
+  const today = new Date();
+
+  date.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  return date > today;
+};
+
 const mealTypeLabels = {
   breakfast: "Breakfast",
   lunch: "Lunch",
@@ -767,8 +782,11 @@ const MealCheckIn = () => {
                 const todaysTokens = myTokens.filter((t) =>
                   isToday(t.mealMenu.date)
                 );
-                const upcomingTokens = myTokens.filter(
-                  (t) => !isToday(t.mealMenu.date)
+                // FIX: previously `!isToday(...)`, which meant a
+                // confirmed token from a *past* date could render under
+                // "Upcoming." Now strictly future-dated only.
+                const upcomingTokens = myTokens.filter((t) =>
+                  isFutureDate(t.mealMenu.date)
                 );
 
                 return (

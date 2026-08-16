@@ -20,6 +20,10 @@ const {
     startWaitlistJob,
 } = require("./utils/waitlist.job");
 
+const {
+    startBillingReminderJob,
+} = require("./utils/billing.job");
+
 
 dotenv.config();
 
@@ -235,6 +239,14 @@ app.get(
 // ===========================================================
 
 startWaitlistJob();
+
+
+// ===========================================================
+// START BILLING REMINDER JOB
+// (marks bills overdue + emails reminders -- Adrija's feature)
+// ===========================================================
+
+startBillingReminderJob();
 
 
 // ===========================================================

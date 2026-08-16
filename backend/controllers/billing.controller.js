@@ -5,6 +5,98 @@ const Expense = require("../models/Expense");
 const MonthlyBill = require("../models/MonthlyBill");
 const User = require("../models/User");
 
+const sendEmail = require("../utils/sendEmail");
+
+// ===========================================================
+// OVERDUE HELPERS
+// A bill for `month`/`year` is considered overdue once it is
+// still unpaid past a grace period after that month ends
+// (the 10th of the following month).
+// ===========================================================
+
+const OVERDUE_GRACE_DAYS = 10;
+
+const getBillDueDate = (month, year) => {
+  // `month` is 1-indexed (1 = January). Passing it directly as
+  // the (0-indexed) month for `Date` lands on the *next*
+  // calendar month, which is exactly the month the grace
+  // period should run into.
+  if (Number(month) === 12) {
+    return new Date(Number(year) + 1, 0, OVERDUE_GRACE_DAYS);
+  }
+
+  return new Date(Number(year), Number(month), OVERDUE_GRACE_DAYS);
+};
+
+const getOverdueInfo = (bill) => {
+  const dueDate = getBillDueDate(bill.month, bill.year);
+  const now = new Date();
+
+  const isOverdue =
+    bill.status !== "paid" && now > dueDate;
+
+  const daysOverdue = isOverdue
+    ? Math.floor((now - dueDate) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  return { dueDate, isOverdue, daysOverdue };
+};
+
+// ===========================================================
+// MARK OVERDUE BILLS + SEND REMINDERS
+// Sweeps every unpaid bill, flips status to "overdue" once the
+// grace period has passed, and emails the resident a reminder.
+// Safe to call repeatedly (skips bills already marked overdue
+// or already paid).
+// ===========================================================
+
+const markOverdueBills = async () => {
+  const candidateBills = await MonthlyBill.find({
+    status: { $in: ["unpaid", "overdue"] },
+  }).populate("resident", "name email notificationPreference");
+
+  let newlyOverdue = 0;
+
+  for (const bill of candidateBills) {
+    const { isOverdue } = getOverdueInfo(bill);
+
+    if (!isOverdue) {
+      continue;
+    }
+
+    const wasAlreadyFlagged = bill.status === "overdue";
+
+    if (!wasAlreadyFlagged) {
+      bill.status = "overdue";
+      await bill.save();
+      newlyOverdue += 1;
+    }
+
+    if (
+      bill.resident?.email &&
+      bill.resident.notificationPreference !== false
+    ) {
+      try {
+        await sendEmail({
+          email: bill.resident.email,
+          subject: "Overdue Mess Bill Reminder",
+          message:
+            `Dear ${bill.resident.name || "Resident"}, your mess bill of ` +
+            `BDT ${Number(bill.totalAmount).toFixed(2)} for ${bill.month}/${bill.year} ` +
+            `is overdue. Please pay as soon as possible to avoid service interruption.`,
+        });
+      } catch (emailError) {
+        console.error(
+          "Overdue reminder email failed:",
+          emailError.message
+        );
+      }
+    }
+  }
+
+  return { checked: candidateBills.length, newlyOverdue };
+};
+
 // ===========================================================
 // GENERATE MONTHLY BILL - STUDENT
 // ===========================================================
@@ -200,7 +292,15 @@ const getMyBill = async (req, res) => {
       });
     }
 
-    return res.status(200).json(bill);
+    const { isOverdue, daysOverdue, dueDate } =
+      getOverdueInfo(bill);
+
+    return res.status(200).json({
+      ...bill.toObject(),
+      dueDate,
+      isOverdue,
+      daysOverdue,
+    });
   } catch (error) {
     console.error(
       "GET MY BILL ERROR:",
@@ -330,6 +430,10 @@ const getBillingOverview = async (req, res) => {
       const confirmedMeals =
         mealMap.get(studentId) || 0;
 
+      const overdueInfo = bill
+        ? getOverdueInfo(bill)
+        : { isOverdue: false, daysOverdue: 0 };
+
       return {
         studentId: student._id,
 
@@ -355,6 +459,9 @@ const getBillingOverview = async (req, res) => {
 
         status:
           bill?.status || "not-generated",
+
+        isOverdue: overdueInfo.isOverdue,
+        daysOverdue: overdueInfo.daysOverdue,
 
         paymentId:
           bill?.paymentId || null,
@@ -396,6 +503,11 @@ const getBillingOverview = async (req, res) => {
           student.confirmedMeals > 0
       ).length;
 
+    const overdueStudents =
+      overview.filter(
+        (student) => student.isOverdue
+      ).length;
+
     // -------------------------------------------------------
     // RESPONSE
     // -------------------------------------------------------
@@ -409,6 +521,7 @@ const getBillingOverview = async (req, res) => {
         paidStudents,
         unpaidStudents,
         confirmedMealStudents,
+        overdueStudents,
       },
 
       students: overview,
@@ -729,6 +842,9 @@ const getPaymentStatus = async (
       });
     }
 
+    const { isOverdue, daysOverdue, dueDate } =
+      getOverdueInfo(bill);
+
     return res.status(200).json({
       billId: bill._id,
 
@@ -746,6 +862,10 @@ const getPaymentStatus = async (
 
       totalAmount:
         bill.totalAmount,
+
+      dueDate,
+      isOverdue,
+      daysOverdue,
     });
   } catch (error) {
     console.error(
@@ -756,6 +876,99 @@ const getPaymentStatus = async (
     return res.status(500).json({
       message:
         "Server error while getting payment status",
+    });
+  }
+};
+
+// ===========================================================
+// SSLCOMMERZ IPN (Instant Payment Notification)
+// SSLCommerz posts here server-to-server as the source of
+// truth for payment status, independent of whether the
+// resident's browser ever makes it back to success_url.
+// ===========================================================
+
+const paymentIPN = async (req, res) => {
+  try {
+    console.log("SSLCommerz IPN:", req.body);
+
+    const { tran_id, status } = req.body;
+
+    if (!tran_id) {
+      return res.status(400).json({
+        message: "Transaction ID missing",
+      });
+    }
+
+    const bill = await MonthlyBill.findOne({
+      paymentId: tran_id,
+    });
+
+    if (!bill) {
+      return res.status(404).json({
+        message: "Bill not found",
+      });
+    }
+
+    if (
+      (status === "VALID" || status === "VALIDATED") &&
+      bill.status !== "paid"
+    ) {
+      bill.status = "paid";
+      bill.paidAt = new Date();
+      bill.receiptNumber = `REC-${Date.now()}`;
+
+      await bill.save();
+    }
+
+    return res.status(200).json({
+      message: "IPN processed",
+    });
+  } catch (error) {
+    console.error("PAYMENT IPN ERROR:", error);
+
+    return res.status(500).json({
+      message: "Server error while processing IPN",
+    });
+  }
+};
+
+// ===========================================================
+// GET OVERDUE BILLS - MANAGER
+// ===========================================================
+
+const getOverdueBills = async (req, res) => {
+  try {
+    if (
+      req.user.role !== "manager" &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "Only managers can view overdue bills",
+      });
+    }
+
+    // Re-sweep first so the list reflects bills that just
+    // crossed the grace period, not only ones already flagged
+    // by the background job.
+    await markOverdueBills();
+
+    const bills = await MonthlyBill.find({
+      status: "overdue",
+    })
+      .populate("resident", "name email")
+      .sort({ year: -1, month: -1 });
+
+    return res.status(200).json({
+      count: bills.length,
+      bills,
+    });
+  } catch (error) {
+    console.error("GET OVERDUE BILLS ERROR:", error);
+
+    return res.status(500).json({
+      message:
+        error.message ||
+        "Server error while loading overdue bills",
     });
   }
 };
@@ -772,5 +985,8 @@ module.exports = {
   paymentSuccess,
   paymentFail,
   paymentCancel,
+  paymentIPN,
   getPaymentStatus,
+  getOverdueBills,
+  markOverdueBills,
 };

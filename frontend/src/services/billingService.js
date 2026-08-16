@@ -50,6 +50,18 @@ export const getBillingOverview = async (
 };
 
 // ===========================================================
+// MANAGER - OVERDUE BILLS
+// ===========================================================
+
+export const getOverdueBills = async () => {
+  const response = await api.get(
+    "/billing/overdue"
+  );
+
+  return response.data;
+};
+
+// ===========================================================
 // DEFAULT EXPORT
 // ===========================================================
 
@@ -57,6 +69,7 @@ const billingService = {
   generateMonthlyBill,
   getMyBill,
   getBillingOverview,
+  getOverdueBills,
 };
 
 export default billingService;
