@@ -3,6 +3,16 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
 
+const billingRoutes =
+  require("./routes/billing.routes");
+
+const forecastRoutes =
+  require("./routes/forecast.routes");
+
+
+const wasteRoutes =
+  require("./routes/waste.routes");
+
 const connectDB =
     require("./config/db");
 
@@ -23,7 +33,13 @@ connectDB();
 
 const app =
     express();
-
+app.get("/api/forecast-test", (req, res) => {
+    console.log("FORECAST TEST ROUTE HIT");
+    res.json({
+        success: true,
+        message: "Forecast route is working"
+    });
+});
 
 // ===========================================================
 // MIDDLEWARE
@@ -172,6 +188,23 @@ app.use(
 app.use(
     "/api/meal-planner",
     mealPlannerRoutes
+);
+
+
+app.use(
+  "/api/billing",
+  billingRoutes
+);
+
+app.use(
+  "/api/forecast",
+  forecastRoutes
+);
+
+
+app.use(
+  "/api/waste",
+  wasteRoutes
 );
 
 // FIX: newly mounted — matches the "/meal-records/..." paths already used

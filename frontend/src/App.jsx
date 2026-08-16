@@ -21,6 +21,9 @@ import PendingReservations from "./pages/PendingReservations";
 import Waitlist from "./pages/Waitlist";
 import MealPlanner from "./pages/MealPlanner";
 import MealCheckIn from "./pages/MealCheckIn";
+import Billing from "./pages/Billing";
+import DemandForecast from "./pages/DemandForecast";
+import FoodWaste from "./pages/FoodWaste";
 
 function App() {
   return (
@@ -174,6 +177,40 @@ function App() {
               </ProtectedRoute>
             }
           />
+        {/* BILLING */}
+{/* BILLING - Student and Manager */}
+<Route 
+  path="/billing" 
+  element={ 
+    <ProtectedRoute> 
+      <Billing /> 
+    </ProtectedRoute> 
+  } 
+
+/>
+
+{/* DEMAND FORECAST */}
+<Route
+  path="/forecast"
+  element={
+    <ProtectedRoute>
+      <DemandForecast />
+    </ProtectedRoute>
+  }
+/>
+
+{/* FOOD WASTE MONITOR */}
+<Route
+  path="/food-waste"
+  element={
+    <ProtectedRoute>
+      <FoodWaste />
+    </ProtectedRoute>
+  }
+/>
+
+
+
 
           {/* 404 */}
           <Route

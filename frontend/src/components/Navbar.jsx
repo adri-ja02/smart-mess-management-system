@@ -88,6 +88,28 @@ function Navbar() {
                     </Link>
                   </li>
                 )}
+
+              <Link></Link>
+              
+
+<li className="nav-item">
+  <Link className="nav-link" to="/billing">
+    Billing
+  </Link>
+</li>
+
+<li className="nav-item">
+  <Link className="nav-link" to="/forecast">
+    Forecast
+  </Link>
+</li>
+
+<li className="nav-item">
+  <Link className="nav-link" to="/food-waste">
+    Food Waste
+  </Link>
+</li>
+
                 {/* ADMIN */}
                 {user.role === "admin" && (
                   <li className="nav-item">
