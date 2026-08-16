@@ -102,6 +102,15 @@ const waitlistRoutes =
 const mealPlannerRoutes =
     require("./routes/mealPlanner.routes");
 
+// FIX: this require + its app.use below were missing entirely — the whole
+// QR check-in / consumption record feature (Sadia's Feature 2) had no
+// mounted route, so every call from mealRecordService.js on the frontend
+// (checkin/qr, checkin/manual, my-history, status/:mealMenuId, etc.) would
+// 404 against the live server, regardless of how correct the controller
+// logic itself was.
+const mealRecordRoutes =
+    require("./routes/meal.routes");
+
 
 // ===========================================================
 // API ROUTES
@@ -163,6 +172,13 @@ app.use(
 app.use(
     "/api/meal-planner",
     mealPlannerRoutes
+);
+
+// FIX: newly mounted — matches the "/meal-records/..." paths already used
+// throughout mealRecordService.js on the frontend.
+app.use(
+    "/api/meal-records",
+    mealRecordRoutes
 );
 
 

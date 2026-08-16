@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 /*
@@ -51,4 +52,6 @@ const mealRecordSchema = new mongoose.Schema(
 mealRecordSchema.index({ mealMenu: 1, status: 1 });
 mealRecordSchema.index({ resident: 1, createdAt: -1 });
 
-module.exports = mongoose.model("MealRecord", mealRecordSchema);
+module.exports =
+  mongoose.models.MealRecord ||
+  mongoose.model("MealRecord", mealRecordSchema);

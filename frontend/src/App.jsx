@@ -1,4 +1,4 @@
- import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -20,6 +20,7 @@ import MyReservations from "./pages/MyReservations";
 import PendingReservations from "./pages/PendingReservations";
 import Waitlist from "./pages/Waitlist";
 import MealPlanner from "./pages/MealPlanner";
+import MealCheckIn from "./pages/MealCheckIn";
 
 function App() {
   return (
@@ -27,22 +28,12 @@ function App() {
       <Navbar />
 
       <div className="container mt-4">
-
         <Routes>
-
           {/* DEFAULT ROUTE */}
-          <Route
-            path="/"
-            element={<Navigate to="/auth" />}
-          />
-
+          <Route path="/" element={<Navigate to="/auth" />} />
 
           {/* AUTH */}
-          <Route
-            path="/auth"
-            element={<Auth />}
-          />
-
+          <Route path="/auth" element={<Auth />} />
 
           {/* CHANGE PASSWORD */}
           <Route
@@ -54,7 +45,6 @@ function App() {
             }
           />
 
-
           {/* STUDENT DASHBOARD */}
           <Route
             path="/student"
@@ -64,7 +54,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
 
           {/* MANAGER DASHBOARD */}
           <Route
@@ -76,40 +65,32 @@ function App() {
             }
           />
 
-        <Route
-  path="/my-reservations"
-  element={
-    <ProtectedRoute role="student">
-      <MyReservations />
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/my-reservations"
+            element={
+              <ProtectedRoute role="student">
+                <MyReservations />
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/pending-reservations"
-  element={
-    <ProtectedRoute role="manager">
-      <PendingReservations />
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/pending-reservations"
+            element={
+              <ProtectedRoute role="manager">
+                <PendingReservations />
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/waitlist"
-  element={
-    <ProtectedRoute role="student">
-      <Waitlist />
-    </ProtectedRoute>
-  }
-/>
-
-
-
-
-
-
-
-
+          <Route
+            path="/waitlist"
+            element={
+              <ProtectedRoute role="student">
+                <Waitlist />
+              </ProtectedRoute>
+            }
+          />
 
           {/* ADMIN DASHBOARD */}
           <Route
@@ -121,7 +102,6 @@ function App() {
             }
           />
 
-
           {/* PROFILE */}
           <Route
             path="/profile"
@@ -131,7 +111,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
 
           {/* ROOM MANAGEMENT */}
           <Route
@@ -143,13 +122,8 @@ function App() {
             }
           />
 
-
           {/* ROOM DETAILS */}
-          <Route
-            path="/rooms/:id"
-            element={<RoomDetails />}
-          />
-
+          <Route path="/rooms/:id" element={<RoomDetails />} />
 
           {/* ROOM EDIT */}
           <Route
@@ -161,7 +135,6 @@ function App() {
             }
           />
 
-
           {/* MODULE 1 - SPACE FIT */}
           <Route
             path="/living-needs"
@@ -171,26 +144,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-           <Route
-            path="/my-reservations"
-            element={
-              <ProtectedRoute role="student">
-                <MyReservations />
-             </ProtectedRoute>
-            }
-          />
-
-          <Route
-          path="/pending-reservations"
-           element={
-             <ProtectedRoute role="manager">
-               <PendingReservations />
-             </ProtectedRoute>
-             }
-            />
-
-
 
           <Route
             path="/spacefit"
@@ -205,14 +158,22 @@ function App() {
           <Route
             path="/meal-planner"
             element={
-               <ProtectedRoute>
-                  <MealPlanner />
-               </ProtectedRoute>
+              <ProtectedRoute>
+                <MealPlanner />
+              </ProtectedRoute>
             }
           />
 
+          {/* MODULE 2 - MEAL CHECK-IN & CONSUMPTION RECORD (Sadia's feature) */}
 
-
+          <Route
+            path="/meal-checkin"
+            element={
+              <ProtectedRoute>
+                <MealCheckIn />
+              </ProtectedRoute>
+            }
+          />
 
           {/* 404 */}
           <Route
@@ -223,9 +184,7 @@ function App() {
               </div>
             }
           />
-
         </Routes>
-
       </div>
     </>
   );

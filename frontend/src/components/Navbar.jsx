@@ -64,24 +64,27 @@ function Navbar() {
 
                 {/* MANAGER */}
                 {user.role === "manager" && (
-                  <>
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/manager">
-                        Dashboard
-                      </Link>
-                    </li>
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/rooms">
-                        Room Management
-                      </Link>
-                    </li>
-                  </>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/manager">
+                      Dashboard
+                    </Link>
+                  </li>
                 )}
                 {/* MODULE 2 - MEAL PLANNER */}
                 {(user.role === "student" || user.role === "manager") && (
                   <li className="nav-item">
                     <Link className="nav-link" to="/meal-planner">
                       Meal Planner
+                    </Link>
+                  </li>
+                )}
+                {/* MODULE 2 - MEAL CHECK-IN */}
+                {/* FIX: this link was missing — MealCheckIn.jsx had no way
+                    to be reached from the navbar. */}
+                {(user.role === "student" || user.role === "manager") && (
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/meal-checkin">
+                      Meal Check-in
                     </Link>
                   </li>
                 )}
