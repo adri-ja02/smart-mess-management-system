@@ -1,7 +1,9 @@
+require("dotenv").config();
 const express = require("express");
-const dotenv = require("dotenv");
+//const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
+const complaintRoutes = require("./routes/complaint.routes.js");
 
 const billingRoutes =
   require("./routes/billing.routes");
@@ -25,7 +27,9 @@ const {
 } = require("./utils/billing.job");
 
 
-dotenv.config();
+//dotenv.config();
+
+
 
 
 // ===========================================================
@@ -218,6 +222,8 @@ app.use(
     mealRecordRoutes
 );
 
+
+app.use("/api/complaints", complaintRoutes);
 
 // ===========================================================
 // TEST

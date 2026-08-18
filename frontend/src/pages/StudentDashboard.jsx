@@ -20,7 +20,6 @@ function StudentDashboard() {
       const res = await roomService.getRooms();
 
       setRooms(res.data.rooms);
-
       setShowRooms(true);
     } catch (error) {
       console.log("Room loading error:", error);
@@ -55,7 +54,6 @@ function StudentDashboard() {
 
           {/* STUDENT INFO */}
           <div className="mb-4">
-
             <h5>
               Welcome, {user?.name} 👋
             </h5>
@@ -67,7 +65,6 @@ function StudentDashboard() {
             <p>
               <strong>Role:</strong> {user?.role}
             </p>
-
           </div>
 
           {/* ACTION BUTTONS */}
@@ -100,6 +97,21 @@ function StudentDashboard() {
             >
               ⏳ My Waitlist
             </Link>
+
+            {/* MODULE 3 */}
+            <Link
+              to="/complaints/new"
+              className="btn btn-danger"
+            >
+              🛠️ Complaints
+            </Link>
+
+            <Link
+  to="/complaints/track"
+  className="btn btn-info"
+>
+  🔎 Track My Complaint
+</Link>
 
           </div>
 
@@ -135,9 +147,7 @@ function StudentDashboard() {
           </div>
 
           {/* ROOMS */}
-
           {showRooms && (
-
             <div className="mt-5">
 
               <h3 className="mb-4">
@@ -179,9 +189,7 @@ function StudentDashboard() {
                     <div className="col-12">
 
                       <div className="alert alert-info">
-
                         No rooms available.
-
                       </div>
 
                     </div>
@@ -193,11 +201,9 @@ function StudentDashboard() {
               )}
 
             </div>
-
           )}
 
           {/* LOGOUT */}
-
           <div className="mt-4">
 
             <button

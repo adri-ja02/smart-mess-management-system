@@ -85,6 +85,13 @@ function ManagerDashboard() {
     📋 Pending Reservations
   </Link>
 
+<button
+  className="btn btn-danger"
+  onClick={() => navigate("/manager/complaints")}
+>
+  🛠️ Complaints & Issues
+</button>
+
 </div>
 
 <hr />

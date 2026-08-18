@@ -24,6 +24,13 @@ import MealCheckIn from "./pages/MealCheckIn";
 import Billing from "./pages/Billing";
 import DemandForecast from "./pages/DemandForecast";
 import FoodWaste from "./pages/FoodWaste";
+import AnonymousComplaint from "./pages/AnonymousComplaint";
+import ComplaintSubmitted from "./pages/ComplaintSubmitted";
+import TrackComplaint from "./pages/TrackComplaint";
+import ManagerComplaintDashboard from "./pages/ManagerComplaintDashboard";
+import ManagerComplaintDetail from "./pages/ManagerComplaintDetail";
+
+
 
 function App() {
   return (
@@ -209,6 +216,29 @@ function App() {
   }
 />
 
+{/* MODULE 3 - ANONYMOUS COMPLAINTS (Adrija's features) */}
+<Route
+  path="/complaints/new"
+  element={
+    <ProtectedRoute role="student">
+      <AnonymousComplaint />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/complaints/submitted"
+  element={
+    <ProtectedRoute role="student">
+      <ComplaintSubmitted />
+    </ProtectedRoute>
+  }
+/>
+
+
+<Route path="/manager/complaints" element={<ManagerComplaintDashboard />} />
+<Route path="/manager/complaints/:id" element={<ManagerComplaintDetail />} />
+<Route path="/complaints/track" element={<TrackComplaint />} />
 
 
 
