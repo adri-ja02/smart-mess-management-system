@@ -10,17 +10,11 @@ const Room = require("../models/Room");
 
 // Matched waitlist student gets WAITLIST_CLAIM_HOURS hours to
 // request the bed before their priority expires.
-//
-// FIX: this previously multiplied by (60 * 1000) instead of
-// (60 * 60 * 1000), so a "24 hour" window was actually only
-// 24 minutes. Also exported so other modules (e.g. the
-// waitlist controller's user-facing messages) can reference
-// the real value instead of hardcoding "24-hour" text that
-// silently goes stale if this number ever changes.
 const WAITLIST_CLAIM_HOURS = 5;
 
 const WAITLIST_CLAIM_MS =
     WAITLIST_CLAIM_HOURS *
+    60 *
     60 *
     1000;
 
@@ -1271,6 +1265,17 @@ const getMyReservations =
 // ===========================================================
 // MANAGER - PENDING RESERVATIONS
 // ===========================================================
+// ===========================================================
+// MANAGER - ALL RESERVATIONS / RESERVATION HISTORY
+// ===========================================================
+//
+// The endpoint name remains /pending so you do NOT need to
+// change your existing route or frontend service.
+//
+// It now returns ALL reservation records, regardless of status.
+// This allows managers to view applicant details even after
+// approval, rejection, cancellation, or expiration.
+// ===========================================================
 
 const getPendingReservations =
     async (req, res) => {
@@ -1287,13 +1292,26 @@ const getPendingReservations =
                 });
             }
 
+            // Run expiry checks first.
+            //
+            // This may change old pending reservations to
+            // "expired", but they will still remain in the
+            // returned reservation history.
             await expireStaleHolds();
             await expireWaitlistMatches();
 
+            // IMPORTANT:
+            //
+            // Do NOT use:
+            //
+            // { status: "pending" }
+            //
+            // because that would hide approved/rejected/
+            // cancelled/expired reservations.
+            //
+            // Empty filter = return all reservations.
             const reservations =
-                await Reservation.find({
-                    status: "pending",
-                })
+                await Reservation.find({})
                     .populate("student")
                     .populate("room")
                     .sort({
@@ -1306,6 +1324,12 @@ const getPendingReservations =
             });
 
         } catch (error) {
+
+            console.error(
+                "[Reservation] getPendingReservations:",
+                error
+            );
+
             return res.status(500).json({
                 success: false,
                 message:
@@ -1906,4 +1930,3 @@ module.exports = {
     validateApplicantDetails,
     sanitizeApplicantDetails,
 };
-

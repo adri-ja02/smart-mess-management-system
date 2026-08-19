@@ -36,6 +36,19 @@ const mealMenuSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Manager-defined window during which a check-in counts as
+    // "collected". A check-in scanned/recorded after checkInEnd is
+    // marked "late" instead. Set at publish time; editable afterwards.
+    checkInStart: {
+      type: Date,
+      required: true,
+    },
+
+    checkInEnd: {
+      type: Date,
+      required: true,
+    },
+
     publishedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

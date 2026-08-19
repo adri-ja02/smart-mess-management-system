@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   createMealMenu,
+  updateMealMenu,
   getMealMenus,
   confirmMeal,
   cancelMeal,
@@ -18,6 +19,9 @@ router.use(protect);
 
 // Manager: publish a new menu
 router.post("/menus", createMealMenu);
+
+// Manager: edit an existing menu (including the check-in window)
+router.patch("/menus/:mealMenuId", updateMealMenu);
 
 // Student/Manager: view published menus
 router.get("/menus", getMealMenus);

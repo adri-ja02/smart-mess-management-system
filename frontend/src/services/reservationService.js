@@ -1,54 +1,10 @@
-import axios from "axios";
+import API from "../api";
 
-const API = `${
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5000"
-}/api/reservations`;
-
-// ===========================================================
-// AUTH TOKEN
-// ===========================================================
-
-const getToken = () => {
-    return localStorage.getItem("token");
-};
-
-
-// ===========================================================
-// AUTH HEADERS
-// ===========================================================
-
-const authHeaders = () => ({
-    headers: {
-        Authorization: `Bearer ${getToken()}`,
-    },
-});
-
-
-// ===========================================================
-// STUDENT - REQUEST RESERVATION
-// ===========================================================
-//
-// Used when a bed is directly available.
-//
-// Example:
-//
-// {
-//     roomId,
-//     bedNumber
-// }
-//
-// If the bed is occupied/onHold, the backend may put the
-// student on the waitlist depending on your reservation
-// controller logic.
-// ===========================================================
 
 export const requestReservation = async (data) => {
-
-    const res = await axios.post(
-        API,
-        data,
-        authHeaders()
+    const res = await API.post(
+        "/reservations",
+        data
     );
 
     return res.data;
@@ -60,10 +16,8 @@ export const requestReservation = async (data) => {
 // ===========================================================
 
 export const getMyReservations = async () => {
-
-    const res = await axios.get(
-        `${API}/my`,
-        authHeaders()
+    const res = await API.get(
+        "/reservations/my"
     );
 
     return res.data;
@@ -75,11 +29,9 @@ export const getMyReservations = async () => {
 // ===========================================================
 
 export const cancelReservation = async (id) => {
-
-    const res = await axios.patch(
-        `${API}/${id}/cancel`,
-        {},
-        authHeaders()
+    const res = await API.patch(
+        `/reservations/${encodeURIComponent(id)}/cancel`,
+        {}
     );
 
     return res.data;
@@ -91,10 +43,8 @@ export const cancelReservation = async (id) => {
 // ===========================================================
 
 export const getPendingReservations = async () => {
-
-    const res = await axios.get(
-        `${API}/pending`,
-        authHeaders()
+    const res = await API.get(
+        "/reservations/pending"
     );
 
     return res.data;
@@ -106,11 +56,9 @@ export const getPendingReservations = async () => {
 // ===========================================================
 
 export const approveReservation = async (id) => {
-
-    const res = await axios.patch(
-        `${API}/${id}/approve`,
-        {},
-        authHeaders()
+    const res = await API.patch(
+        `/reservations/${encodeURIComponent(id)}/approve`,
+        {}
     );
 
     return res.data;
@@ -120,63 +68,28 @@ export const approveReservation = async (id) => {
 // ===========================================================
 // MANAGER - REJECT RESERVATION
 // ===========================================================
-//
-// reason is required by backend.
-//
-// Example:
-//
-// rejectReservation(id, "Documents are incomplete")
-// ===========================================================
+
 
 export const rejectReservation = async (
     id,
     reason
 ) => {
-
-    const res = await axios.patch(
-        `${API}/${id}/reject`,
+    const res = await API.patch(
+        `/reservations/${encodeURIComponent(id)}/reject`,
         {
             reason,
-        },
-        authHeaders()
+        }
     );
 
     return res.data;
 };
 
 
-// ===========================================================
-// STUDENT - RESERVATION STATUS
-// ===========================================================
-//
-// roomId = Room ObjectId
-//
-// Returns:
-//
-// {
-//     status: "pending"
-// }
-//
-// OR
-//
-// {
-//     status: "approved"
-// }
-//
-// OR
-//
-// {
-//     status: null
-// }
-// ===========================================================
-
 export const getReservationStatus = async (
     roomId
 ) => {
-
-    const res = await axios.get(
-        `${API}/status/${roomId}`,
-        authHeaders()
+    const res = await API.get(
+        `/reservations/status/${encodeURIComponent(roomId)}`
     );
 
     return res.data;

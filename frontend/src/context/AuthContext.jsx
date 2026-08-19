@@ -4,10 +4,21 @@ import * as authService from "../services/authService";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // 👤 Load user from localStorage (if exists)
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
+  /* =========================
+      LOAD USER FROM LOCAL STORAGE
+  ========================= */
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+
+      return savedUser
+        ? JSON.parse(savedUser)
+        : null;
+    } catch (error) {
+      console.error("Failed to load user:", error);
+      return null;
+    }
+  });
 
   const [loading, setLoading] = useState(false);
 
@@ -16,8 +27,10 @@ export const AuthProvider = ({ children }) => {
   ========================= */
   const register = async (data) => {
     setLoading(true);
+
     try {
       const res = await authService.register(data);
+
       return res;
     } finally {
       setLoading(false);
@@ -29,30 +42,82 @@ export const AuthProvider = ({ children }) => {
   ========================= */
   const login = async (data) => {
     setLoading(true);
+
     try {
       const res = await authService.login(data);
 
-      // 🔐 SAVE USER + TOKEN
-      localStorage.setItem("user", JSON.stringify(res));
-      localStorage.setItem("token", res.token);
+      /*
+        Backend now returns:
 
+        {
+          _id,
+          name,
+          email,
+          role,
+          approvalStatus,
+          accountStatus,
+          profilePhoto,
+          token
+        }
+      */
+
+      // Save complete user information
+      localStorage.setItem(
+        "user",
+        JSON.stringify(res)
+      );
+
+      // Save authentication token
+      if (res.token) {
+        localStorage.setItem(
+          "token",
+          res.token
+        );
+      }
+
+      // Update React state
       setUser(res);
 
       return res;
+
     } finally {
       setLoading(false);
     }
   };
 
   /* =========================
+      UPDATE USER
+      Used after profile changes
+      or profile photo changes
+  ========================= */
+  const updateUser = (updatedUser) => {
+    if (!updatedUser) return;
+
+    // Update React state
+    setUser(updatedUser);
+
+    // Update localStorage
+    localStorage.setItem(
+      "user",
+      JSON.stringify(updatedUser)
+    );
+  };
+
+  /* =========================
       LOGOUT
   ========================= */
   const logout = () => {
+    // Remove authentication information
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+
+    // Clear current user
     setUser(null);
   };
 
+  /* =========================
+      CONTEXT PROVIDER
+  ========================= */
   return (
     <AuthContext.Provider
       value={{
@@ -60,6 +125,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         register,
         login,
+        updateUser,
         logout,
       }}
     >
@@ -71,4 +137,6 @@ export const AuthProvider = ({ children }) => {
 /* =========================
    CUSTOM HOOK
 ========================= */
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  return useContext(AuthContext);
+};

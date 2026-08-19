@@ -45,6 +45,10 @@ const registerUser = async (req, res) => {
       role: user.role,
       approvalStatus: user.approvalStatus,
       accountStatus: user.accountStatus,
+
+      // 👤 Include profile photo
+      profilePhoto: user.profilePhoto || null,
+
       token: generateToken(user._id),
     });
 
@@ -55,12 +59,12 @@ const registerUser = async (req, res) => {
   }
 };
 
+
 /* =========================
    LOGIN USER
 ========================= */
 const loginUser = async (req, res) => {
   try {
-
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
@@ -82,6 +86,9 @@ const loginUser = async (req, res) => {
       });
     }
 
+    /* =========================
+       ADMIN CHECK
+    ========================= */
     if (
       user.role === "admin" &&
       !ADMIN_EMAILS.includes(user.email)
@@ -91,6 +98,9 @@ const loginUser = async (req, res) => {
       });
     }
 
+    /* =========================
+       MANAGER APPROVAL CHECK
+    ========================= */
     if (
       user.role === "manager" &&
       user.approvalStatus !== "approved"
@@ -100,12 +110,18 @@ const loginUser = async (req, res) => {
       });
     }
 
+    /* =========================
+       BLOCKED ACCOUNT CHECK
+    ========================= */
     if (user.accountStatus === "blocked") {
       return res.status(403).json({
         message: "Your account has been blocked.",
       });
     }
 
+    /* =========================
+       LOGIN RESPONSE
+    ========================= */
     return res.json({
       _id: user._id,
       name: user.name,
@@ -113,6 +129,11 @@ const loginUser = async (req, res) => {
       role: user.role,
       approvalStatus: user.approvalStatus,
       accountStatus: user.accountStatus,
+
+      // 👤 IMPORTANT:
+      // Send saved profile photo during login
+      profilePhoto: user.profilePhoto || null,
+
       token: generateToken(user._id),
     });
 
@@ -123,12 +144,12 @@ const loginUser = async (req, res) => {
   }
 };
 
+
 /* =========================
    GET PROFILE
 ========================= */
 const getProfile = async (req, res) => {
   try {
-
     const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
@@ -146,12 +167,12 @@ const getProfile = async (req, res) => {
   }
 };
 
+
 /* =========================
    CHANGE PASSWORD
 ========================= */
 const changePassword = async (req, res) => {
   try {
-
     const { currentPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user.id);
@@ -192,6 +213,7 @@ const changePassword = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   registerUser,

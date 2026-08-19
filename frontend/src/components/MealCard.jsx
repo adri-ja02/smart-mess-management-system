@@ -5,12 +5,16 @@ import {
   getExpectedDinerCount,
 } from "../services/mealPlannerService";
 
+const formatDateTime = (value) =>
+  value ? new Date(value).toLocaleString() : "—";
+
 const MealCard = ({
   meal,
   role,
   confirmed,
   mealToken,
   onMealStatusChanged,
+  onEdit,
 }) => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -31,10 +35,18 @@ const MealCard = ({
       }
 
       try {
-        const data = await getExpectedDinerCount(meal._id);
-        setExpectedDiners(data.expectedDiners);
+        const data = await getExpectedDinerCount(
+          meal._id
+        );
+
+        setExpectedDiners(
+          data.expectedDiners
+        );
       } catch (err) {
-        console.error("Could not load expected diner count", err);
+        console.error(
+          "Could not load expected diner count",
+          err
+        );
       }
     };
 
@@ -47,20 +59,41 @@ const MealCard = ({
     setLoading(true);
 
     try {
-      const result = await confirmMeal(meal._id);
+      /*
+        The backend checks whether the student has
+        an approved reservation with an occupied bed.
+
+        A token is created ONLY when that validation
+        succeeds.
+      */
+      const result = await confirmMeal(
+        meal._id
+      );
 
       setMessage(
-        result.message || "Meal confirmed successfully"
+        result.message ||
+          "Meal confirmed successfully"
       );
 
       if (result.mealToken?.tokenCode) {
-        setNewTokenCode(result.mealToken.tokenCode);
+        setNewTokenCode(
+          result.mealToken.tokenCode
+        );
       }
 
       if (onMealStatusChanged) {
         onMealStatusChanged(false);
       }
     } catch (err) {
+      /*
+        IMPORTANT:
+        The backend sends the exact reason when the
+        student does not have an occupied bed.
+
+        Example:
+        "Meal confirmation is only available
+        to residents with an occupied bed."
+      */
       setError(
         err.response?.data?.message ||
           "Could not confirm meal"
@@ -76,10 +109,13 @@ const MealCard = ({
     setLoading(true);
 
     try {
-      const result = await cancelMeal(meal._id);
+      const result = await cancelMeal(
+        meal._id
+      );
 
       setMessage(
-        result.message || "Meal cancelled successfully"
+        result.message ||
+          "Meal cancelled successfully"
       );
 
       setNewTokenCode("");
@@ -106,15 +142,19 @@ const MealCard = ({
 
         <p className="mb-2">
           <strong>Date:</strong>{" "}
-          {new Date(meal.date).toLocaleDateString()}
+          {new Date(
+            meal.date
+          ).toLocaleDateString()}
         </p>
 
         <p className="mb-2">
-          <strong>Menu:</strong> {meal.menu}
+          <strong>Menu:</strong>{" "}
+          {meal.menu}
         </p>
 
         <p className="mb-2">
-          <strong>Price:</strong> ৳{meal.price}
+          <strong>Price:</strong>{" "}
+          ৳{meal.price}
         </p>
 
         <p className="mb-2">
@@ -122,66 +162,119 @@ const MealCard = ({
           {meal.dietaryNotes || "None"}
         </p>
 
-        <p className="mb-3">
+        <p className="mb-2">
           <strong>Cut-off:</strong>{" "}
-          {new Date(meal.cutoffTime).toLocaleString()}
+          {new Date(
+            meal.cutoffTime
+          ).toLocaleString()}
         </p>
 
+        <p className="mb-3">
+          <strong>
+            Meal Check-in Window:
+          </strong>{" "}
+          {formatDateTime(
+            meal.checkInStart
+          )}{" "}
+          &ndash;{" "}
+          {formatDateTime(
+            meal.checkInEnd
+          )}
+        </p>
+
+        {/* SUCCESS MESSAGE */}
         {message && (
           <div className="alert alert-success py-2">
             {message}
           </div>
         )}
 
+        {/* ERROR MESSAGE */}
         {error && (
           <div className="alert alert-danger py-2">
-            {error}
-          </div>
-        )}
-
-        {role === "student" && confirmed && tokenCode && (
-          <div className="alert alert-success">
-            <strong>Meal Token:</strong>
-
+            <strong>Meal confirmation failed:</strong>
             <div className="mt-1">
-              <code>{tokenCode}</code>
+              {error}
             </div>
           </div>
         )}
 
+        {/* MEAL TOKEN */}
+        {role === "student" &&
+          confirmed &&
+          tokenCode && (
+            <div className="alert alert-success">
+              <strong>Meal Token:</strong>
+
+              <div className="mt-1">
+                <code>
+                  {tokenCode}
+                </code>
+              </div>
+            </div>
+          )}
+
+        {/* STUDENT ACTIONS */}
         {role === "student" && (
           <>
             {cutoffPassed ? (
               <div className="alert alert-secondary py-2 mb-0">
-                Confirmation deadline has passed
+                Confirmation deadline has
+                passed
               </div>
             ) : confirmed ? (
               <button
                 className="btn btn-danger"
-                onClick={handleCancel}
+                onClick={
+                  handleCancel
+                }
                 disabled={loading}
               >
-                {loading ? "Please wait..." : "Cancel Meal"}
+                {loading
+                  ? "Please wait..."
+                  : "Cancel Meal"}
               </button>
             ) : (
               <button
                 className="btn btn-success"
-                onClick={handleConfirm}
+                onClick={
+                  handleConfirm
+                }
                 disabled={loading}
               >
-                {loading ? "Please wait..." : "Confirm Meal"}
+                {loading
+                  ? "Please wait..."
+                  : "Confirm Meal"}
               </button>
             )}
           </>
         )}
 
+        {/* MANAGER */}
         {role === "manager" && (
-          <div className="alert alert-info mb-0">
-            <strong>Expected Diners:</strong>{" "}
-            {expectedDiners === null
-              ? "Loading..."
-              : expectedDiners}
-          </div>
+          <>
+            <div className="alert alert-info">
+              <strong>
+                Expected Diners:
+              </strong>{" "}
+              {expectedDiners ===
+              null
+                ? "Loading..."
+                : expectedDiners}
+            </div>
+
+            {onEdit && (
+              <button
+                type="button"
+                className="btn btn-outline-primary mb-0"
+                onClick={() =>
+                  onEdit(meal)
+                }
+              >
+                Edit Meal
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,7 +1,19 @@
+require("dotenv").config();
 const express = require("express");
-const dotenv = require("dotenv");
+//const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
+const complaintRoutes = require("./routes/complaint.routes.js");
+
+const billingRoutes =
+  require("./routes/billing.routes");
+
+const forecastRoutes =
+  require("./routes/forecast.routes");
+
+
+const wasteRoutes =
+  require("./routes/waste.routes");
 
 const connectDB =
     require("./config/db");
@@ -10,8 +22,14 @@ const {
     startWaitlistJob,
 } = require("./utils/waitlist.job");
 
+const {
+    startBillingReminderJob,
+} = require("./utils/billing.job");
 
-dotenv.config();
+
+//dotenv.config();
+
+
 
 
 // ===========================================================
@@ -23,7 +41,13 @@ connectDB();
 
 const app =
     express();
-
+app.get("/api/forecast-test", (req, res) => {
+    console.log("FORECAST TEST ROUTE HIT");
+    res.json({
+        success: true,
+        message: "Forecast route is working"
+    });
+});
 
 // ===========================================================
 // MIDDLEWARE
@@ -174,6 +198,23 @@ app.use(
     mealPlannerRoutes
 );
 
+
+app.use(
+  "/api/billing",
+  billingRoutes
+);
+
+app.use(
+  "/api/forecast",
+  forecastRoutes
+);
+
+
+app.use(
+  "/api/waste",
+  wasteRoutes
+);
+
 // FIX: newly mounted — matches the "/meal-records/..." paths already used
 // throughout mealRecordService.js on the frontend.
 app.use(
@@ -181,6 +222,8 @@ app.use(
     mealRecordRoutes
 );
 
+
+app.use("/api/complaints", complaintRoutes);
 
 // ===========================================================
 // TEST
@@ -202,6 +245,14 @@ app.get(
 // ===========================================================
 
 startWaitlistJob();
+
+
+// ===========================================================
+// START BILLING REMINDER JOB
+// (marks bills overdue + emails reminders -- Adrija's feature)
+// ===========================================================
+
+startBillingReminderJob();
 
 
 // ===========================================================

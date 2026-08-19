@@ -12,6 +12,15 @@ export const createMealMenu = async (menuData) => {
   return response.data;
 };
 
+// Manager: edit an existing meal menu (including the check-in window)
+export const updateMealMenu = async (mealMenuId, menuData) => {
+  const response = await api.patch(
+    `/meal-planner/menus/${mealMenuId}`,
+    menuData
+  );
+  return response.data;
+};
+
 // Student: confirm a meal
 export const confirmMeal = async (mealMenuId) => {
   const response = await api.post(

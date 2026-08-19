@@ -22,6 +22,14 @@ import PendingReservations from "./pages/PendingReservations";
 import Waitlist from "./pages/Waitlist";
 import MealPlanner from "./pages/MealPlanner";
 import MealCheckIn from "./pages/MealCheckIn";
+import Billing from "./pages/Billing";
+import DemandForecast from "./pages/DemandForecast";
+import FoodWaste from "./pages/FoodWaste";
+import AnonymousComplaint from "./pages/AnonymousComplaint";
+import ComplaintSubmitted from "./pages/ComplaintSubmitted";
+import TrackComplaint from "./pages/TrackComplaint";
+import ManagerComplaintDashboard from "./pages/ManagerComplaintDashboard";
+import ManagerComplaintDetail from "./pages/ManagerComplaintDetail";
 
 function App() {
   return (
@@ -176,7 +184,6 @@ function App() {
           />
 
           {/* MODULE 2 - MEAL CHECK-IN & CONSUMPTION RECORD (Sadia's feature) */}
-
           <Route
             path="/meal-checkin"
             element={
@@ -185,6 +192,60 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* BILLING - Student and Manager */}
+          <Route
+            path="/billing"
+            element={
+              <ProtectedRoute>
+                <Billing />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* DEMAND FORECAST */}
+          <Route
+            path="/forecast"
+            element={
+              <ProtectedRoute>
+                <DemandForecast />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* FOOD WASTE MONITOR */}
+          <Route
+            path="/food-waste"
+            element={
+              <ProtectedRoute>
+                <FoodWaste />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* MODULE 3 - ANONYMOUS COMPLAINTS (Adrija's features) */}
+          <Route
+            path="/complaints/new"
+            element={
+              <ProtectedRoute role="student">
+                <AnonymousComplaint />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/complaints/submitted"
+            element={
+              <ProtectedRoute role="student">
+                <ComplaintSubmitted />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/complaints/track" element={<TrackComplaint />} />
+
+          <Route path="/manager/complaints" element={<ManagerComplaintDashboard />} />
+          <Route path="/manager/complaints/:id" element={<ManagerComplaintDetail />} />
 
           {/* 404 */}
           <Route

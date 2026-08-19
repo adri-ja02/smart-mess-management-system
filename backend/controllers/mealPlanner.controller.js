@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const MealMenu = require("../models/MealMenu");
 const MealToken = require("../models/MealToken");
+const BedReservation = require("../models/BedReservation");
 
 // Generate a unique meal token code
 const generateTokenCode = () => {
@@ -25,6 +26,8 @@ const createMealMenu = async (req, res) => {
       price,
       dietaryNotes,
       cutoffTime,
+      checkInStart,
+      checkInEnd,
     } = req.body;
 
     if (
@@ -32,11 +35,13 @@ const createMealMenu = async (req, res) => {
       !mealType ||
       !menu ||
       price === undefined ||
-      !cutoffTime
+      !cutoffTime ||
+      !checkInStart ||
+      !checkInEnd
     ) {
       return res.status(400).json({
         message:
-          "Date, meal type, menu, price and cutoff time are required",
+          "Date, meal type, menu, price, cutoff time and check-in start/end are required",
       });
     }
 
@@ -60,6 +65,12 @@ const createMealMenu = async (req, res) => {
       });
     }
 
+    if (new Date(checkInEnd) <= new Date(checkInStart)) {
+      return res.status(400).json({
+        message: "Check-in end time must be after the check-in start time",
+      });
+    }
+
     const mealMenu = await MealMenu.create({
       date,
       mealType,
@@ -67,6 +78,8 @@ const createMealMenu = async (req, res) => {
       price,
       dietaryNotes: dietaryNotes || "",
       cutoffTime,
+      checkInStart,
+      checkInEnd,
       publishedBy: req.user._id,
     });
 
@@ -86,6 +99,97 @@ const createMealMenu = async (req, res) => {
 
     res.status(500).json({
       message: "Server error while publishing meal menu",
+    });
+  }
+};
+
+// ===============================
+// MANAGER: Edit a meal menu
+// ===============================
+const updateMealMenu = async (req, res) => {
+  try {
+    if (req.user.role !== "manager") {
+      return res.status(403).json({
+        message: "Only managers can edit meal menus",
+      });
+    }
+
+    const { mealMenuId } = req.params;
+
+    const mealMenu = await MealMenu.findById(mealMenuId);
+
+    if (!mealMenu) {
+      return res.status(404).json({
+        message: "Meal menu not found",
+      });
+    }
+
+    const {
+      date,
+      mealType,
+      menu,
+      price,
+      dietaryNotes,
+      cutoffTime,
+      checkInStart,
+      checkInEnd,
+    } = req.body;
+
+    const validMealTypes = ["breakfast", "lunch", "dinner"];
+
+    if (mealType !== undefined && !validMealTypes.includes(mealType)) {
+      return res.status(400).json({
+        message: "Meal type must be breakfast, lunch or dinner",
+      });
+    }
+
+    if (price !== undefined && Number(price) < 0) {
+      return res.status(400).json({
+        message: "Price cannot be negative",
+      });
+    }
+
+    const nextCheckInStart = checkInStart
+      ? new Date(checkInStart)
+      : mealMenu.checkInStart;
+
+    const nextCheckInEnd = checkInEnd
+      ? new Date(checkInEnd)
+      : mealMenu.checkInEnd;
+
+    if (nextCheckInEnd <= nextCheckInStart) {
+      return res.status(400).json({
+        message: "Check-in end time must be after the check-in start time",
+      });
+    }
+
+    if (date !== undefined) mealMenu.date = date;
+    if (mealType !== undefined) mealMenu.mealType = mealType;
+    if (menu !== undefined) mealMenu.menu = menu;
+    if (price !== undefined) mealMenu.price = price;
+    if (dietaryNotes !== undefined) mealMenu.dietaryNotes = dietaryNotes;
+    if (cutoffTime !== undefined) mealMenu.cutoffTime = cutoffTime;
+    if (checkInStart !== undefined) mealMenu.checkInStart = checkInStart;
+    if (checkInEnd !== undefined) mealMenu.checkInEnd = checkInEnd;
+
+    await mealMenu.save();
+
+    res.status(200).json({
+      message: "Meal menu updated successfully",
+      mealMenu,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message:
+          "A menu for this meal type already exists on this date",
+      });
+    }
+
+    console.error("Update meal menu error:", error);
+
+    res.status(500).json({
+      message: "Server error while updating meal menu",
     });
   }
 };
@@ -140,6 +244,41 @@ const confirmMeal = async (req, res) => {
         message: "Meal confirmation deadline has passed",
       });
     }
+
+    // =====================================================
+    // CHECK STUDENT'S OCCUPIED BED
+    // =====================================================
+
+    const reservation = await BedReservation.findOne({
+      student: req.user._id,
+      status: "approved",
+    }).populate(
+      "room",
+      "building roomNumber beds isArchived"
+    );
+
+    const occupiedBed = reservation?.room?.beds?.find(
+      (bed) =>
+        bed.bedNumber === reservation.bedNumber &&
+        bed.occupied === true &&
+        bed.isArchived !== true
+    );
+
+    if (
+      !reservation ||
+      !reservation.room ||
+      reservation.room.isArchived ||
+      !occupiedBed
+    ) {
+      return res.status(403).json({
+        message:
+          "Meal confirmation is only available to residents with an occupied bed.",
+      });
+    }
+
+    // =====================================================
+    // EXISTING MEAL CONFIRMATION LOGIC
+    // =====================================================
 
     let mealToken = await MealToken.findOne({
       mealMenu: mealMenuId,
@@ -319,6 +458,7 @@ const getExpectedDinerCount = async (req, res) => {
 
 module.exports = {
   createMealMenu,
+  updateMealMenu,
   getMealMenus,
   confirmMeal,
   cancelMeal,

@@ -35,6 +35,7 @@ const toDateInputValue = (value) => {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
+
   return `${yyyy}-${mm}-${dd}`;
 };
 
@@ -54,7 +55,6 @@ const formatTime = (value) =>
    Reuses existing endpoints only:
    - getMealMenus() to resolve (date, mealType) -> MealMenu._id
    - getMealStatusGrid(mealMenuId) for the recorded + pending list
-   No backend changes required.
 
    FIX: accepts a `refreshSignal` prop — an incrementing counter owned by
    the parent page (MealCheckIn.jsx) that changes whenever a check-in
@@ -73,7 +73,9 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
   const [selectedDate, setSelectedDate] = useState(
     toDateInputValue(new Date())
   );
-  const [selectedMealType, setSelectedMealType] = useState("breakfast");
+
+  const [selectedMealType, setSelectedMealType] =
+    useState("breakfast");
 
   const [records, setRecords] = useState([]);
   const [pending, setPending] = useState([]);
@@ -82,9 +84,7 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
 
   const isMountedRef = useRef(true);
 
-  // Load the full menu list once. getMealMenus() returns every published
-  // menu (no server-side date filter, matching the pattern already used
-  // in MealCheckIn.jsx), so we resolve date+mealType -> menu client-side.
+  // Load the full menu list once.
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -92,14 +92,17 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
       try {
         setMenusLoading(true);
         setMenusError("");
+
         const menuData = await getMealMenus();
+
         if (isMountedRef.current) {
           setMenus(menuData || []);
         }
       } catch (err) {
         if (isMountedRef.current) {
           setMenusError(
-            err.response?.data?.message || "Could not load meal menus"
+            err.response?.data?.message ||
+              "Could not load meal menus"
           );
         }
       } finally {
@@ -138,7 +141,11 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
       try {
         setGridLoading(true);
         setGridError("");
-        const data = await getMealStatusGrid(matchedMenu._id);
+
+        const data = await getMealStatusGrid(
+          matchedMenu._id
+        );
+
         if (!cancelled) {
           setRecords(data.records || []);
           setPending(data.pending || []);
@@ -146,8 +153,10 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
       } catch (err) {
         if (!cancelled) {
           setGridError(
-            err.response?.data?.message || "Could not load meal records"
+            err.response?.data?.message ||
+              "Could not load meal records"
           );
+
           setRecords([]);
           setPending([]);
         }
@@ -183,69 +192,105 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
     }));
 
     return [...recorded, ...notCheckedIn].sort((a, b) =>
-      (a.resident?.name || "").localeCompare(b.resident?.name || "")
+      (a.resident?.name || "").localeCompare(
+        b.resident?.name || ""
+      )
     );
   }, [records, pending]);
 
   const counts = useMemo(() => {
-    const base = { collected: 0, late: 0, skipped: 0, not_checked_in: 0 };
+    const base = {
+      collected: 0,
+      late: 0,
+      skipped: 0,
+      not_checked_in: 0,
+    };
+
     rows.forEach((row) => {
       if (base[row.status] !== undefined) {
         base[row.status] += 1;
       }
     });
+
     return base;
   }, [rows]);
 
   return (
     <div className="card shadow-sm">
       <div className="card-body">
-        <h5 className="card-title mb-3">Meal History — All Records</h5>
+        <h5 className="card-title mb-3">
+          Meal History — All Records
+        </h5>
 
         {menusError && (
-          <div className="alert alert-danger py-2">{menusError}</div>
+          <div className="alert alert-danger py-2">
+            {menusError}
+          </div>
         )}
 
         <div className="row g-2 mb-3">
           <div className="col-6 col-md-4">
-            <label className="form-label small text-muted">Date</label>
+            <label className="form-label small text-muted">
+              Date
+            </label>
+
             <input
               type="date"
               className="form-control"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) =>
+                setSelectedDate(e.target.value)
+              }
               disabled={menusLoading}
             />
           </div>
+
           <div className="col-6 col-md-4">
-            <label className="form-label small text-muted">Meal</label>
+            <label className="form-label small text-muted">
+              Meal
+            </label>
+
             <select
               className="form-select"
               value={selectedMealType}
-              onChange={(e) => setSelectedMealType(e.target.value)}
+              onChange={(e) =>
+                setSelectedMealType(e.target.value)
+              }
               disabled={menusLoading}
             >
-              {Object.entries(mealTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+              {Object.entries(mealTypeLabels).map(
+                ([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                )
+              )}
             </select>
           </div>
         </div>
 
         {menusLoading || gridLoading ? (
           <div className="text-center py-3">
-            <div className="spinner-border spinner-border-sm" role="status">
-              <span className="visually-hidden">Loading...</span>
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+            >
+              <span className="visually-hidden">
+                Loading...
+              </span>
             </div>
           </div>
         ) : gridError ? (
-          <div className="alert alert-danger py-2">{gridError}</div>
+          <div className="alert alert-danger py-2">
+            {gridError}
+          </div>
         ) : !matchedMenu ? (
           <div className="alert alert-info mb-0">
-            No {mealTypeLabels[selectedMealType].toLowerCase()} menu was
-            published for {selectedDate}.
+            No{" "}
+            {mealTypeLabels[
+              selectedMealType
+            ].toLowerCase()}{" "}
+            menu was published for {selectedDate}.
           </div>
         ) : (
           <>
@@ -253,17 +298,23 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
               <span className="badge bg-success">
                 Collected: {counts.collected}
               </span>
+
               <span className="badge bg-warning text-dark">
                 Late: {counts.late}
               </span>
+
               <span className="badge bg-danger">
                 Skipped: {counts.skipped}
               </span>
+
               <span className="badge bg-secondary">
-                Not checked-in: {counts.not_checked_in}
+                Not checked-in:{" "}
+                {counts.not_checked_in}
               </span>
+
               <span className="text-muted small ms-auto">
-                {rows.length} total confirmed meal{rows.length === 1 ? "" : "s"}
+                {rows.length} total confirmed meal
+                {rows.length === 1 ? "" : "s"}
               </span>
             </div>
 
@@ -277,31 +328,75 @@ const ManagerMealHistoryBrowser = ({ refreshSignal }) => {
                   <thead>
                     <tr>
                       <th>Resident</th>
-                      <th>Room / Bed</th>
+                      <th>Building</th>
+                      <th>Room</th>
+                      <th>Bed</th>
                       <th>Status</th>
                       <th>Method</th>
-                      <th>Time</th>
+                      <th> Check-in Time</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.key}>
-                        <td>{row.resident?.name || "Unknown"}</td>
+                        {/* RESIDENT */}
                         <td>
-                          Room {row.resident?.room || "—"} | Bed{" "}
-                          {row.resident?.bed || "—"}
+                          {row.resident?.name ||
+                            "Unknown"}
                         </td>
+
+                        {/* BUILDING */}
+                        <td>
+                          {row.resident?.building ||
+                            "—"}
+                        </td>
+
+                        {/* ROOM */}
+                        <td>
+                          {row.resident?.room ||
+                            "—"}
+                        </td>
+
+                        {/* BED */}
+                        <td>
+                          {row.resident?.bed ||
+                            "—"}
+                        </td>
+
+                        {/* STATUS */}
                         <td>
                           <span
                             className={`badge ${
-                              statusBadgeClass[row.status] || "bg-secondary"
+                              statusBadgeClass[
+                                row.status
+                              ] ||
+                              "bg-secondary"
                             }`}
                           >
-                            {statusLabel[row.status] || row.status}
+                            {statusLabel[
+                              row.status
+                            ] ||
+                              row.status}
                           </span>
                         </td>
-                        <td>{row.method ? methodLabel[row.method] || row.method : "—"}</td>
-                        <td>{formatTime(row.checkInTime)}</td>
+
+                        {/* METHOD */}
+                        <td>
+                          {row.method
+                            ? methodLabel[
+                                row.method
+                              ] ||
+                              row.method
+                            : "—"}
+                        </td>
+
+                        {/* TIME */}
+                        <td>
+                          {formatTime(
+                            row.checkInTime
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

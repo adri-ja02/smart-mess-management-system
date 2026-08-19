@@ -1,20 +1,111 @@
 const MealRecord = require("../models/MealRecord");
 const MealToken = require("../models/MealToken");
 const MealMenu = require("../models/MealMenu");
+const BedReservation = require("../models/BedReservation");
 
 /*
-  How long after a menu's cutoffTime the normal service window stays open.
-  A check-in inside this window is "collected"; after it, "late".
-  ASSUMPTION: there's no explicit serving-start/end field on MealMenu yet —
-  confirm this window with the team, or add real serving-time fields later.
+  The manager sets an explicit check-in date/time range (checkInStart /
+  checkInEnd) on the MealMenu when publishing it (editable afterwards).
+  A check-in recorded inside that window is "collected"; a check-in
+  recorded after checkInEnd is "late". Once checkInEnd has passed,
+  confirmed tokens with no check-in at all become sweep-eligible for
+  "skipped" via markSkippedMeals.
 */
-const SERVICE_WINDOW_MINUTES = 60;
-
 const isLate = (mealMenu) => {
-  const serviceEnd = new Date(
-    new Date(mealMenu.cutoffTime).getTime() + SERVICE_WINDOW_MINUTES * 60000
+  return new Date() > new Date(mealMenu.checkInEnd);
+};
+
+// Check-in is only allowed once the manager-set window has opened.
+const hasCheckInWindowOpened = (mealMenu) => {
+  return new Date() >= new Date(mealMenu.checkInStart);
+};
+
+/*
+  ================================================================
+  HELPER: GET STUDENT'S APPROVED OCCUPIED BED
+  ================================================================
+
+  A student is considered a resident for meal purposes only when:
+
+  1. They have an approved BedReservation
+  2. The reservation's room exists and is not archived
+  3. The reserved bed exists
+  4. The bed is occupied
+  5. The bed is not archived
+*/
+const getOccupiedBedForStudent = async (studentId) => {
+  const reservation = await BedReservation.findOne({
+    student: studentId,
+    status: "approved",
+  }).populate(
+    "room",
+    "building roomNumber beds isArchived"
   );
-  return new Date() > serviceEnd;
+
+  if (!reservation) {
+    return null;
+  }
+
+  const room = reservation.room;
+
+  if (!room || room.isArchived) {
+    return null;
+  }
+
+  const bed = room.beds?.find(
+    (item) =>
+      item.bedNumber === reservation.bedNumber &&
+      item.occupied === true &&
+      item.isArchived !== true
+  );
+
+  if (!bed) {
+    return null;
+  }
+
+  return {
+    reservation,
+    room,
+    bed,
+
+    building:
+      room.building?.name || "—",
+
+    roomNumber:
+      room.roomNumber || "—",
+
+    bedNumber:
+      bed.bedNumber || "—",
+  };
+};
+
+/*
+  ================================================================
+  HELPER: RESIDENT DISPLAY INFORMATION
+  ================================================================
+*/
+const getResidentWithLocation = async (resident) => {
+  if (!resident) {
+    return resident;
+  }
+
+  const occupiedBed =
+    await getOccupiedBedForStudent(
+      resident._id
+    );
+
+  return {
+    ...resident.toObject(),
+
+    building:
+      occupiedBed?.building || "—",
+
+    room:
+      occupiedBed?.roomNumber || "—",
+
+    bed:
+      occupiedBed?.bedNumber || "—",
+  };
 };
 
 /* ================= QR SCAN CHECK-IN (resident or manager) ================= */
@@ -29,9 +120,10 @@ exports.scanQrCheckIn = async (req, res) => {
       });
     }
 
-    const mealToken = await MealToken.findOne({ tokenCode }).populate(
-      "mealMenu"
-    );
+    const mealToken =
+      await MealToken.findOne({
+        tokenCode,
+      }).populate("mealMenu");
 
     if (!mealToken) {
       return res.status(404).json({
@@ -48,53 +140,117 @@ exports.scanQrCheckIn = async (req, res) => {
       });
     }
 
-    // Only the resident who owns this token, or a manager, may check it in.
+    // Only the resident who owns this token,
+    // or a manager, may check it in.
     const isOwner =
-      mealToken.resident.toString() === req.user._id.toString();
-    const isManager = req.user.role === "manager";
+      mealToken.resident.toString() ===
+      req.user._id.toString();
+
+    const isManager =
+      req.user.role === "manager";
 
     if (!isOwner && !isManager) {
       return res.status(403).json({
         success: false,
-        message: "You cannot check in this meal",
+        message:
+          "You cannot check in this meal",
       });
     }
 
-    const status = isLate(mealToken.mealMenu) ? "late" : "collected";
+    /*
+      ============================================================
+      IMPORTANT:
+      A student must currently have an occupied bed.
+      ============================================================
+    */
+    if (req.user.role === "student") {
+      const occupiedBed =
+        await getOccupiedBedForStudent(
+          mealToken.resident
+        );
+
+      if (!occupiedBed) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Meal confirmation and token use are only available to residents with an occupied bed.",
+        });
+      }
+    }
+
+    if (
+      !hasCheckInWindowOpened(
+        mealToken.mealMenu
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Check-in has not started yet. It opens at ${new Date(
+          mealToken.mealMenu.checkInStart
+        ).toLocaleString()}.`,
+      });
+    }
+
+    const status = isLate(
+      mealToken.mealMenu
+    )
+      ? "late"
+      : "collected";
 
     try {
-      // Atomic create — the unique index on mealToken in the schema is the
-      // real duplicate-check-in guard (race-condition safe under concurrent
-      // scans), this try/catch just turns the DB error into a clean response.
-      const record = await MealRecord.create({
-        mealToken: mealToken._id,
-        resident: mealToken.resident,
-        mealMenu: mealToken.mealMenu._id,
-        status,
-        method: "QR",
-        checkInTime: new Date(),
+      const record =
+        await MealRecord.create({
+          mealToken:
+            mealToken._id,
+
+          resident:
+            mealToken.resident,
+
+          mealMenu:
+            mealToken.mealMenu._id,
+
+          status,
+
+          method: "QR",
+
+          checkInTime:
+            new Date(),
+        });
+
+      /*
+        Populate resident so frontend can display
+        resident name.
+      */
+      await record.populate(
+        "resident",
+        "name room bed"
+      );
+
+      return res.status(201).json({
+        success: true,
+        record,
       });
-
-      // FIX: populate resident before responding — the frontend (QrScanner)
-      // displays record.resident.name, which was always undefined before
-      // this populate was added.
-      await record.populate("resident", "name room bed");
-
-      return res.status(201).json({ success: true, record });
     } catch (err) {
       if (err.code === 11000) {
         return res.status(409).json({
           success: false,
-          message: "This meal has already been checked in",
+          message:
+            "This meal has already been checked in",
         });
       }
+
       throw err;
     }
   } catch (error) {
-    console.error("QR check-in error:", error);
+    console.error(
+      "QR check-in error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
-      message: "Server error during check-in",
+      message:
+        "Server error during check-in",
     });
   }
 };
@@ -105,13 +261,24 @@ exports.manualCheckIn = async (req, res) => {
     if (req.user.role !== "manager") {
       return res.status(403).json({
         success: false,
-        message: "Only managers can manually check in residents",
+        message:
+          "Only managers can manually check in residents",
       });
     }
 
-    const { mealTokenId, status } = req.body;
+    const {
+      mealTokenId,
+      status,
+    } = req.body;
 
-    if (!mealTokenId || !["collected", "skipped", "late"].includes(status)) {
+    if (
+      !mealTokenId ||
+      ![
+        "collected",
+        "skipped",
+        "late",
+      ].includes(status)
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -119,20 +286,19 @@ exports.manualCheckIn = async (req, res) => {
       });
     }
 
-    const mealToken = await MealToken.findById(mealTokenId).populate(
-      "mealMenu"
-    );
+    const mealToken =
+      await MealToken.findById(
+        mealTokenId
+      ).populate("mealMenu");
 
     if (!mealToken) {
       return res.status(404).json({
         success: false,
-        message: "Meal token not found",
+        message:
+          "Meal token not found",
       });
     }
 
-    // FIX: previously scanQrCheckIn refused a cancelled token but this
-    // endpoint didn't — a manager could check in a token the resident had
-    // already cancelled. Same guard as the QR path, for consistency.
     if (mealToken.status !== "confirmed") {
       return res.status(400).json({
         success: false,
@@ -141,332 +307,719 @@ exports.manualCheckIn = async (req, res) => {
       });
     }
 
-    try {
-      // checkInTime is always set to "now" for a manual override that isn't
-      // "skipped" — even if the manager marks it "collected" or "late" well
-      // after the fact, we record when the record itself was made, since we
-      // have no other reliable timestamp for a manual entry.
-      const record = await MealRecord.create({
-        mealToken: mealToken._id,
-        resident: mealToken.resident,
-        mealMenu: mealToken.mealMenu._id,
-        status,
-        method: "Manual",
-        checkInTime: status === "skipped" ? null : new Date(),
-        checkedInBy: req.user._id,
+    if (
+      !hasCheckInWindowOpened(
+        mealToken.mealMenu
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Check-in has not started yet. It opens at ${new Date(
+          mealToken.mealMenu.checkInStart
+        ).toLocaleString()}.`,
       });
+    }
 
-      // FIX: same populate gap as scanQrCheckIn — needed for any UI that
-      // displays the resident's name straight off this response.
-      await record.populate("resident", "name room bed");
+    try {
+      const record =
+        await MealRecord.create({
+          mealToken:
+            mealToken._id,
 
-      return res.status(201).json({ success: true, record });
+          resident:
+            mealToken.resident,
+
+          mealMenu:
+            mealToken.mealMenu._id,
+
+          status,
+
+          method: "Manual",
+
+          checkInTime:
+            status === "skipped"
+              ? null
+              : new Date(),
+
+          checkedInBy:
+            req.user._id,
+        });
+
+      await record.populate(
+        "resident",
+        "name room bed"
+      );
+
+      return res.status(201).json({
+        success: true,
+        record,
+      });
     } catch (err) {
       if (err.code === 11000) {
         return res.status(409).json({
           success: false,
-          message: "A consumption record already exists for this meal",
+          message:
+            "A consumption record already exists for this meal",
         });
       }
+
       throw err;
     }
   } catch (error) {
-    console.error("Manual check-in error:", error);
+    console.error(
+      "Manual check-in error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
-      message: "Server error during manual check-in",
+      message:
+        "Server error during manual check-in",
     });
   }
 };
 
-/* ================= AUTO-MARK NO-SHOWS AS SKIPPED (manager/cron) ================= */
-exports.markSkippedMeals = async (req, res) => {
+/* ================= AUTO-MARK NO-SHOWS AS SKIPPED ================= */
+exports.markSkippedMeals = async (
+  req,
+  res
+) => {
   try {
     if (req.user.role !== "manager") {
       return res.status(403).json({
         success: false,
-        message: "Only managers can run this",
+        message:
+          "Only managers can run this",
       });
     }
 
-    // Menus whose service window has already closed.
-    const closedMenus = await MealMenu.find({
-      cutoffTime: {
-        $lte: new Date(Date.now() - SERVICE_WINDOW_MINUTES * 60000),
-      },
-    }).select("_id");
+    const closedMenus =
+      await MealMenu.find({
+        checkInEnd: {
+          $lte: new Date(),
+        },
+      }).select("_id");
 
-    const menuIds = closedMenus.map((m) => m._id);
+    const menuIds =
+      closedMenus.map(
+        (m) => m._id
+      );
 
-    const confirmedTokens = await MealToken.find({
-      mealMenu: { $in: menuIds },
-      status: "confirmed",
-    });
+    const confirmedTokens =
+      await MealToken.find({
+        mealMenu: {
+          $in: menuIds,
+        },
 
-    const existingRecords = await MealRecord.find({
-      mealToken: { $in: confirmedTokens.map((t) => t._id) },
-    }).select("mealToken");
+        status: "confirmed",
+      });
 
-    const alreadyRecorded = new Set(
-      existingRecords.map((r) => r.mealToken.toString())
-    );
+    const existingRecords =
+      await MealRecord.find({
+        mealToken: {
+          $in:
+            confirmedTokens.map(
+              (t) => t._id
+            ),
+        },
+      }).select("mealToken");
 
-    const toInsert = confirmedTokens
-      .filter((t) => !alreadyRecorded.has(t._id.toString()))
-      .map((t) => ({
-        mealToken: t._id,
-        resident: t.resident,
-        mealMenu: t.mealMenu,
-        status: "skipped",
-        method: "System",
-        checkInTime: null,
-      }));
+    const alreadyRecorded =
+      new Set(
+        existingRecords.map(
+          (r) =>
+            r.mealToken.toString()
+        )
+      );
+
+    const toInsert =
+      confirmedTokens
+        .filter(
+          (t) =>
+            !alreadyRecorded.has(
+              t._id.toString()
+            )
+        )
+        .map((t) => ({
+          mealToken: t._id,
+
+          resident:
+            t.resident,
+
+          mealMenu:
+            t.mealMenu,
+
+          status: "skipped",
+
+          method: "System",
+
+          checkInTime: null,
+        }));
 
     let inserted = 0;
 
     if (toInsert.length) {
       try {
-        // unordered: one duplicate-key clash (rare race with a live
-        // check-in that happened between our pre-check above and this
-        // insert) shouldn't block the rest of the batch from inserting.
-        const result = await MealRecord.insertMany(toInsert, {
-          ordered: false,
-        });
-        inserted = result.length;
+        const result =
+          await MealRecord.insertMany(
+            toInsert,
+            {
+              ordered: false,
+            }
+          );
+
+        inserted =
+          result.length;
       } catch (bulkErr) {
-        // FIX: insertMany with ordered:false still throws a
-        // BulkWriteError after a partial success — previously this was
-        // uncaught here, fell through to the outer catch, and returned a
-        // 500 even though most/all records had actually been inserted.
-        // We now treat pure duplicate-key failures as a partial success
-        // and only rethrow anything that isn't a duplicate-key issue.
         const isDuplicateKeyOnly =
           bulkErr.code === 11000 ||
-          bulkErr.writeErrors?.every((e) => e.code === 11000);
+          bulkErr.writeErrors?.every(
+            (e) =>
+              e.code === 11000
+          );
 
         if (!isDuplicateKeyOnly) {
           throw bulkErr;
         }
 
         inserted =
-          bulkErr.result?.nInserted ?? bulkErr.insertedDocs?.length ?? 0;
+          bulkErr.result
+            ?.nInserted ??
+          bulkErr.insertedDocs
+            ?.length ??
+          0;
       }
     }
 
-    res.json({ success: true, marked: inserted });
+    res.json({
+      success: true,
+      marked: inserted,
+    });
   } catch (error) {
-    console.error("Mark skipped meals error:", error);
+    console.error(
+      "Mark skipped meals error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
-      message: "Server error marking skipped meals",
+      message:
+        "Server error marking skipped meals",
     });
   }
 };
 
 /* ================= RESIDENT: MY MEAL HISTORY ================= */
-exports.getMyMealHistory = async (req, res) => {
+exports.getMyMealHistory = async (
+  req,
+  res
+) => {
   try {
-    const records = await MealRecord.find({ resident: req.user._id })
-      .populate("mealMenu", "date mealType menu price")
-      .sort({ createdAt: -1 });
+    const records =
+      await MealRecord.find({
+        resident:
+          req.user._id,
+      })
+        .populate(
+          "mealMenu",
+          "date mealType menu price"
+        )
+        .sort({
+          createdAt: -1,
+        });
 
-    res.json({ success: true, records });
+    res.json({
+      success: true,
+      records,
+    });
   } catch (error) {
-    console.error("Get meal history error:", error);
+    console.error(
+      "Get meal history error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
-      message: "Server error loading meal history",
+      message:
+        "Server error loading meal history",
     });
   }
 };
 
 /* ================= MANAGER: VIEW ANY RESIDENT'S HISTORY ================= */
-exports.getResidentMealHistory = async (req, res) => {
-  try {
-    if (req.user.role !== "manager") {
-      return res.status(403).json({
+exports.getResidentMealHistory =
+  async (req, res) => {
+    try {
+      if (req.user.role !== "manager") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only managers can view another resident's history",
+        });
+      }
+
+      const {
+        residentId,
+      } = req.params;
+
+      const records =
+        await MealRecord.find({
+          resident:
+            residentId,
+        })
+          .populate(
+            "mealMenu",
+            "date mealType menu price"
+          )
+          .populate(
+            "resident",
+            "name email room bed"
+          )
+          .sort({
+            createdAt: -1,
+          });
+
+      res.json({
+        success: true,
+        records,
+      });
+    } catch (error) {
+      console.error(
+        "Get resident meal history error:",
+        error
+      );
+
+      res.status(500).json({
         success: false,
-        message: "Only managers can view another resident's history",
+        message:
+          "Server error loading resident history",
       });
     }
-
-    const { residentId } = req.params;
-
-    const records = await MealRecord.find({ resident: residentId })
-      .populate("mealMenu", "date mealType menu price")
-      .populate("resident", "name email room bed")
-      .sort({ createdAt: -1 });
-
-    res.json({ success: true, records });
-  } catch (error) {
-    console.error("Get resident meal history error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error loading resident history",
-    });
-  }
-};
+  };
 
 /* ================= MANAGER: STATUS GRID FOR ONE MEAL ================= */
-exports.getMealStatusGrid = async (req, res) => {
-  try {
-    if (req.user.role !== "manager") {
-      return res.status(403).json({
+exports.getMealStatusGrid =
+  async (req, res) => {
+    try {
+      if (req.user.role !== "manager") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only managers can view the status grid",
+        });
+      }
+
+      const {
+        mealMenuId,
+      } = req.params;
+
+      const [
+        confirmedTokens,
+        records,
+      ] = await Promise.all([
+        MealToken.find({
+          mealMenu:
+            mealMenuId,
+
+          status:
+            "confirmed",
+        }).populate(
+          "resident",
+          "name email"
+        ),
+
+        MealRecord.find({
+          mealMenu:
+            mealMenuId,
+        }).populate(
+          "resident",
+          "name email"
+        ),
+      ]);
+
+      /*
+        ============================================================
+        GET OCCUPIED BUILDING / ROOM / BED FOR ALL RESIDENTS
+        ============================================================
+      */
+
+      const residentIds =
+        [
+          ...confirmedTokens.map(
+            (token) =>
+              token.resident?._id
+          ),
+
+          ...records.map(
+            (record) =>
+              record.resident?._id
+          ),
+        ].filter(Boolean);
+
+      const reservations =
+        await BedReservation.find({
+          student: {
+            $in: residentIds,
+          },
+
+          status:
+            "approved",
+        }).populate(
+          "room",
+          "building roomNumber beds isArchived"
+        );
+
+      const reservationMap =
+        new Map();
+
+      reservations.forEach(
+        (reservation) => {
+          const room =
+            reservation.room;
+
+          if (
+            !room ||
+            room.isArchived
+          ) {
+            return;
+          }
+
+          const bed =
+            room.beds?.find(
+              (item) =>
+                item.bedNumber ===
+                  reservation.bedNumber &&
+                item.occupied ===
+                  true &&
+                item.isArchived !==
+                  true
+            );
+
+          if (!bed) {
+            return;
+          }
+
+          reservationMap.set(
+            reservation.student.toString(),
+            {
+              building:
+                room.building
+                  ?.name || "—",
+
+              room:
+                room.roomNumber ||
+                "—",
+
+              bed:
+                bed.bedNumber ||
+                "—",
+            }
+          );
+        }
+      );
+
+      /*
+        ============================================================
+        ADD BUILDING / ROOM / BED TO RESIDENT
+        ============================================================
+      */
+
+      const addLocation =
+        (resident) => {
+          if (!resident) {
+            return resident;
+          }
+
+          const location =
+            reservationMap.get(
+              resident._id.toString()
+            ) || {
+              building: "—",
+              room: "—",
+              bed: "—",
+            };
+
+          return {
+            ...resident.toObject(),
+
+            building:
+              location.building,
+
+            room:
+              location.room,
+
+            bed:
+              location.bed,
+          };
+        };
+
+      const recordsWithLocation =
+        records.map(
+          (record) => ({
+            ...record.toObject(),
+
+            resident:
+              addLocation(
+                record.resident
+              ),
+          })
+        );
+
+      const recordedTokenIds =
+        new Set(
+          records.map((r) =>
+            r.mealToken.toString()
+          )
+        );
+
+      const pending =
+        confirmedTokens
+          .filter(
+            (t) =>
+              !recordedTokenIds.has(
+                t._id.toString()
+              )
+          )
+          .map((t) => ({
+            mealToken:
+              t._id,
+
+            resident:
+              addLocation(
+                t.resident
+              ),
+
+            status:
+              "not_checked_in",
+          }));
+
+      res.json({
+        success: true,
+
+        records:
+          recordsWithLocation,
+
+        pending,
+      });
+    } catch (error) {
+      console.error(
+        "Get status grid error:",
+        error
+      );
+
+      res.status(500).json({
         success: false,
-        message: "Only managers can view the status grid",
+        message:
+          "Server error loading status grid",
       });
     }
-
-    const { mealMenuId } = req.params;
-
-    // ASSUMPTION: the User model has `room`/`bed` fields from the room
-    // allocation feature elsewhere in the app. Adjust the populate string
-    // if those fields live somewhere else (e.g. a separate RoomAssignment).
-    const [confirmedTokens, records] = await Promise.all([
-      MealToken.find({ mealMenu: mealMenuId, status: "confirmed" }).populate(
-        "resident",
-        "name email room bed"
-      ),
-      MealRecord.find({ mealMenu: mealMenuId }).populate(
-        "resident",
-        "name email room bed"
-      ),
-    ]);
-
-    const recordedTokenIds = new Set(
-      records.map((r) => r.mealToken.toString())
-    );
-
-    const pending = confirmedTokens
-      .filter((t) => !recordedTokenIds.has(t._id.toString()))
-      .map((t) => ({
-        mealToken: t._id,
-        resident: t.resident,
-        status: "not_checked_in",
-      }));
-
-    res.json({ success: true, records, pending });
-  } catch (error) {
-    console.error("Get status grid error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error loading status grid",
-    });
-  }
-};
+  };
 
 /* ================= MANAGER: OVERRIDE A RECORD'S STATUS ================= */
-exports.updateMealStatus = async (req, res) => {
-  try {
-    if (req.user.role !== "manager") {
-      return res.status(403).json({
+exports.updateMealStatus =
+  async (req, res) => {
+    try {
+      if (req.user.role !== "manager") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only managers can update meal status",
+        });
+      }
+
+      const {
+        status,
+      } = req.body;
+
+      if (
+        ![
+          "collected",
+          "skipped",
+          "late",
+        ].includes(status)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid status",
+        });
+      }
+
+      const update = {
+        status,
+
+        method: "Manual",
+
+        checkedInBy:
+          req.user._id,
+
+        checkInTime:
+          status === "skipped"
+            ? null
+            : new Date(),
+      };
+
+      const record =
+        await MealRecord.findByIdAndUpdate(
+          req.params.id,
+          update,
+          {
+            new: true,
+          }
+        ).populate(
+          "resident",
+          "name room bed"
+        );
+
+      if (!record) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Meal record not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        record,
+      });
+    } catch (error) {
+      console.error(
+        "Update meal status error:",
+        error
+      );
+
+      res.status(500).json({
         success: false,
-        message: "Only managers can update meal status",
+        message:
+          "Server error updating status",
       });
     }
+  };
 
-    const { status } = req.body;
+/* ================= MANAGER: MONTHLY CONSUMPTION SUMMARY ================= */
+exports.getMonthlySummary =
+  async (req, res) => {
+    try {
+      if (req.user.role !== "manager") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only managers can view billing summaries",
+        });
+      }
 
-    if (!["collected", "skipped", "late"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
+      const {
+        year,
+        month,
+      } = req.query;
 
-    // FIX: keep checkInTime consistent with the new status — previously an
-    // override left a stale checkInTime (e.g. skip -> collected kept
-    // checkInTime null; collected -> skipped kept the old timestamp).
-    const update = {
-      status,
-      method: "Manual",
-      checkedInBy: req.user._id,
-      checkInTime: status === "skipped" ? null : new Date(),
-    };
+      if (!year || !month) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "year and month are required",
+        });
+      }
 
-    const record = await MealRecord.findByIdAndUpdate(req.params.id, update, {
-      new: true,
-    }).populate("resident", "name room bed");
+      const start =
+        new Date(
+          Number(year),
+          Number(month) - 1,
+          1
+        );
 
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        message: "Meal record not found",
-      });
-    }
+      const end =
+        new Date(
+          Number(year),
+          Number(month),
+          1
+        );
 
-    res.json({ success: true, record });
-  } catch (error) {
-    console.error("Update meal status error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error updating status",
-    });
-  }
-};
+      const summary =
+        await MealRecord.aggregate([
+          {
+            $lookup: {
+              from: "mealmenus",
 
-/* ================= MANAGER: MONTHLY CONSUMPTION SUMMARY (billing input) ================= */
-exports.getMonthlySummary = async (req, res) => {
-  try {
-    if (req.user.role !== "manager") {
-      return res.status(403).json({
-        success: false,
-        message: "Only managers can view billing summaries",
-      });
-    }
+              localField:
+                "mealMenu",
 
-    const { year, month } = req.query; // e.g. year=2026, month=07
+              foreignField:
+                "_id",
 
-    if (!year || !month) {
-      return res.status(400).json({
-        success: false,
-        message: "year and month are required",
-      });
-    }
-
-    const start = new Date(Number(year), Number(month) - 1, 1);
-    const end = new Date(Number(year), Number(month), 1);
-
-    // Joins through to MealMenu so Feature 3 gets per-meal price alongside
-    // consumption counts, without a separate round trip.
-    const summary = await MealRecord.aggregate([
-      {
-        $lookup: {
-          from: "mealmenus",
-          localField: "mealMenu",
-          foreignField: "_id",
-          as: "menu",
-        },
-      },
-      { $unwind: "$menu" },
-      { $match: { "menu.date": { $gte: start, $lt: end } } },
-      {
-        $group: {
-          _id: {
-            resident: "$resident",
-            status: "$status",
-            mealType: "$menu.mealType",
-          },
-          count: { $sum: 1 },
-          totalValue: {
-            $sum: {
-              $cond: [
-                { $in: ["$status", ["collected", "late"]] },
-                "$menu.price",
-                0,
-              ],
+              as: "menu",
             },
           },
-        },
-      },
-    ]);
 
-    res.json({ success: true, summary });
-  } catch (error) {
-    console.error("Monthly summary error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error building monthly summary",
-    });
-  }
-};
+          {
+            $unwind:
+              "$menu",
+          },
+
+          {
+            $match: {
+              "menu.date": {
+                $gte: start,
+                $lt: end,
+              },
+            },
+          },
+
+          {
+            $group: {
+              _id: {
+                resident:
+                  "$resident",
+
+                status:
+                  "$status",
+
+                mealType:
+                  "$menu.mealType",
+              },
+
+              count: {
+                $sum: 1,
+              },
+
+              totalValue: {
+                $sum: {
+                  $cond: [
+                    {
+                      $in: [
+                        "$status",
+                        [
+                          "collected",
+                          "late",
+                        ],
+                      ],
+                    },
+
+                    "$menu.price",
+
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]);
+
+      res.json({
+        success: true,
+        summary,
+      });
+    } catch (error) {
+      console.error(
+        "Monthly summary error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message:
+          "Server error building monthly summary",
+      });
+    }
+  };

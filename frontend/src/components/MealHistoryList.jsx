@@ -16,18 +16,12 @@ const statusLabel = {
   skipped: "Skipped",
 };
 
-// If residentId is provided (manager view), fetches that resident's
-// history. Otherwise fetches the logged-in resident's own history.
-//
-// FIX: accepts a `refreshSignal` prop — an incrementing counter owned by
-// the parent page (MealCheckIn.jsx) that changes whenever a check-in
-// mutation happens anywhere on the page (QR scan, manual check-in, status
-// edit, sweep). Previously this component only refetched when `residentId`
-// changed, so after a check-in the "Today's meal status" grid updated but
-// this history table kept showing stale data until the user navigated
-// away and back. Including refreshSignal in the effect's dependency array
-// makes it refetch every time a check-in happens, regardless of source.
-const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
+
+const MealHistoryList = ({
+  residentId,
+  residentName,
+  refreshSignal,
+}) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,14 +47,11 @@ const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
         }
       } catch (err) {
         if (!cancelled) {
-          // FIX: clear stale records on error too — previously only
-          // `error` was set here, so if resident A's history had already
-          // loaded and then resident B's request failed, the error banner
-          // rendered on top of A's table, which reads as if the failed
-          // request actually returned A's data.
           setError(
-            err.response?.data?.message || "Could not load meal history"
+            err.response?.data?.message ||
+              "Could not load meal history"
           );
+
           setRecords([]);
         }
       } finally {
@@ -84,8 +75,13 @@ const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
   if (loading) {
     return (
       <div className="text-center py-3">
-        <div className="spinner-border spinner-border-sm" role="status">
-          <span className="visually-hidden">Loading...</span>
+        <div
+          className="spinner-border spinner-border-sm"
+          role="status"
+        >
+          <span className="visually-hidden">
+            Loading...
+          </span>
         </div>
       </div>
     );
@@ -94,12 +90,20 @@ const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
   return (
     <div className="card shadow-sm">
       <div className="card-body">
-        <h5 className="card-title mb-3">{title}</h5>
+        <h5 className="card-title mb-3">
+          {title}
+        </h5>
 
-        {error && <div className="alert alert-danger py-2">{error}</div>}
+        {error && (
+          <div className="alert alert-danger py-2">
+            {error}
+          </div>
+        )}
 
         {records.length === 0 ? (
-          <div className="alert alert-info mb-0">No meal records yet.</div>
+          <div className="alert alert-info mb-0">
+            No meal records yet.
+          </div>
         ) : (
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -107,38 +111,85 @@ const MealHistoryList = ({ residentId, residentName, refreshSignal }) => {
                 <tr>
                   <th>Date</th>
                   <th>Meal</th>
+                  <th>Building</th>
+                  <th>Room</th>
+                  <th>Bed</th>
                   <th>Status</th>
-                  <th>Time</th>
+                  <th>Check-in Time</th>
                 </tr>
               </thead>
+
               <tbody>
                 {records.map((record) => (
                   <tr key={record._id}>
+                    {/* DATE */}
                     <td>
                       {record.mealMenu?.date
-                        ? new Date(record.mealMenu.date).toLocaleDateString(
+                        ? new Date(
+                            record.mealMenu.date
+                          ).toLocaleDateString(
                             "en-US",
-                            { month: "short", day: "numeric", year: "numeric" }
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
                           )
                         : "-"}
                     </td>
+
+                    {/* MEAL */}
                     <td className="text-capitalize">
-                      {record.mealMenu?.mealType || "-"}
+                      {record.mealMenu?.mealType ||
+                        "-"}
                     </td>
+
+                    {/* BUILDING */}
+                    <td>
+                      {record.resident?.building ||
+                        "-"}
+                    </td>
+
+                    {/* ROOM */}
+                    <td>
+                      {record.resident?.room ||
+                        "-"}
+                    </td>
+
+                    {/* BED */}
+                    <td>
+                      {record.resident?.bed ||
+                        "-"}
+                    </td>
+
+                    {/* STATUS */}
                     <td>
                       <span
                         className={`badge ${
-                          statusBadgeClass[record.status] || "bg-secondary"
+                          statusBadgeClass[
+                            record.status
+                          ] ||
+                          "bg-secondary"
                         }`}
                       >
-                        {statusLabel[record.status] || record.status}
+                        {statusLabel[
+                          record.status
+                        ] ||
+                          record.status}
                       </span>
                     </td>
+
+                    {/* TIME */}
                     <td>
                       {record.checkInTime
-                        ? new Date(record.checkInTime).toLocaleTimeString(
+                        ? new Date(
+                            record.checkInTime
+                          ).toLocaleTimeString(
                             [],
-                            { hour: "numeric", minute: "2-digit" }
+                            {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }
                           )
                         : "—"}
                     </td>

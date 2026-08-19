@@ -25,6 +25,7 @@ const MealPlanner = () => {
   const [mealTokens, setMealTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editingMeal, setEditingMeal] = useState(null);
 
   const [weekStart, setWeekStart] = useState(
     getMonday(new Date())
@@ -139,6 +140,19 @@ const MealPlanner = () => {
     setWeekStart(getMonday(new Date()));
   };
 
+  const handleEditRequested = (meal) => {
+    setEditingMeal(meal);
+  };
+
+  const handleMenuUpdated = () => {
+    setEditingMeal(null);
+    loadMealPlannerData();
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMeal(null);
+  };
+
   return (
     <div className="container py-4">
       <div className="mb-4">
@@ -150,7 +164,12 @@ const MealPlanner = () => {
       </div>
 
       {role === "manager" && (
-        <MealMenuForm onMenuCreated={loadMealPlannerData} />
+        <MealMenuForm
+          onMenuCreated={loadMealPlannerData}
+          editingMeal={editingMeal}
+          onMenuUpdated={handleMenuUpdated}
+          onCancelEdit={handleCancelEdit}
+        />
       )}
 
       <div className="card shadow-sm mb-4">
@@ -226,6 +245,7 @@ const MealPlanner = () => {
                   confirmed={isMealConfirmed(meal._id)}
                   mealToken={mealToken}
                   onMealStatusChanged={loadMealPlannerData}
+                  onEdit={role === "manager" ? handleEditRequested : undefined}
                 />
               </div>
             );
