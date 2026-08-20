@@ -23,10 +23,6 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-
-  /* IMPORTANT:
-     NEVER allow the whole page to scroll */
-  overflow: hidden;
 }
 
 body {
@@ -35,20 +31,25 @@ body {
 
 
 /* =========================================================
-   AUTH PAGE
+   AUTH PAGE ONLY
+   IMPORTANT:
+   Prevent whole-page scrolling ONLY on Auth page.
+   Other pages remain normal.
    ========================================================= */
 
 .auth-page {
-  position: relative;
+  position: fixed;
+
+  inset: 0;
 
   width: 100vw;
   height: 100vh;
 
-  min-height: 100vh;
-
   overflow: hidden;
 
   background: #e9e5fa;
+
+  z-index: 0;
 }
 
 
@@ -69,8 +70,7 @@ body {
   /*
      COMPLETE IMAGE FITS THE SCREEN.
 
-     100% 100% means the entire image is shown.
-     Nothing is cropped from the sides or top/bottom.
+     Nothing is cropped.
   */
 
   background-image: url("../assets/smart-mess-login-bg.png");
@@ -114,47 +114,36 @@ body {
   z-index: 5;
 
   /*
-     CARD VERTICAL POSITION
-
-     Increase this number to move card downward.
+     CARD 1% LOWER
   */
 
-  top: 45%;
+  top: 46%;
 
   /*
-     CARD HORIZONTAL POSITION
+     SLIGHTLY LEFT
 
-     Smaller right value = farther RIGHT.
-     Larger right value = farther LEFT.
+     Smaller "right" value moves the card RIGHT.
+     Larger "right" value moves the card LEFT.
+
+     4% gives a slightly-left position.
   */
 
-  right: 5%;
-
-  /*
-     WIDE CARD
-  */
+  right: 4%;
 
   width: 560px;
 
-  max-width: calc(100vw - 40px);
+  max-width: 560px;
 
   display: flex;
 
   justify-content: center;
 
   transform: translateY(-50%);
-
-  /*
-     Content itself does NOT scroll.
-     Only .auth-card scrolls.
-  */
-
-  overflow: visible;
 }
 
 
 /* =========================================================
-   MAIN GLASS AUTH CARD
+   MAIN GLASS LOGIN CARD
    ========================================================= */
 
 .auth-card {
@@ -162,26 +151,12 @@ body {
 
   width: 100%;
 
-  /*
-     IMPORTANT:
-
-     The card has its own height limit.
-     If the Register form becomes too tall,
-     ONLY THIS CARD will scroll.
-  */
-
-  max-height: calc(100vh - 30px);
-
-  overflow-x: hidden;
-
-  overflow-y: auto;
-
   padding: 28px 38px 23px;
 
   border-radius: 28px;
 
   /*
-     SOFT LAVENDER GLASS
+     SOFT LAVENDER GLASS COLOR
   */
 
   background:
@@ -195,16 +170,7 @@ body {
 
   -webkit-backdrop-filter: blur(18px);
 
-  /*
-     GLASS BORDER
-  */
-
-  border:
-    1px solid rgba(255, 255, 255, 0.95);
-
-  /*
-     SOFT SHADOW
-  */
+  border: 1px solid rgba(255, 255, 255, 0.95);
 
   box-shadow:
     0 25px 60px rgba(48, 38, 90, 0.25),
@@ -212,8 +178,15 @@ body {
     inset 0 1px 4px rgba(255, 255, 255, 0.95);
 
   /*
-     CUSTOM SCROLLBAR
+     IMPORTANT:
+     Only the card can scroll.
   */
+
+  max-height: calc(100vh - 25px);
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
 
   scrollbar-width: thin;
 
@@ -238,15 +211,9 @@ body {
 }
 
 .auth-card::-webkit-scrollbar-thumb {
-  background:
-    rgba(112, 80, 189, 0.35);
+  background: rgba(112, 80, 189, 0.35);
 
   border-radius: 10px;
-}
-
-.auth-card::-webkit-scrollbar-thumb:hover {
-  background:
-    rgba(112, 80, 189, 0.55);
 }
 
 
@@ -267,8 +234,7 @@ body {
 
   height: 4px;
 
-  border-radius:
-    0 0 12px 12px;
+  border-radius: 0 0 12px 12px;
 
   background:
     linear-gradient(
@@ -280,8 +246,7 @@ body {
     );
 
   box-shadow:
-    0 2px 12px
-    rgba(112, 80, 189, 0.28);
+    0 2px 12px rgba(112, 80, 189, 0.28);
 
   pointer-events: none;
 }
@@ -341,8 +306,7 @@ body {
 
   height: 58px;
 
-  margin:
-    0 auto 9px;
+  margin: 0 auto 9px;
 
   display: flex;
 
@@ -359,16 +323,11 @@ body {
       rgba(224, 215, 255, 0.70)
     );
 
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.90);
 
   box-shadow:
-    0 8px 20px
-    rgba(79, 66, 140, 0.16),
-
-    inset 0 1px 3px
-    rgba(255, 255, 255, 0.95);
+    0 8px 20px rgba(79, 66, 140, 0.16),
+    inset 0 1px 3px rgba(255, 255, 255, 0.95);
 
   font-size: 27px;
 }
@@ -398,8 +357,7 @@ body {
    ========================================================= */
 
 .auth-description {
-  margin:
-    8px auto 0;
+  margin: 8px auto 0;
 
   max-width: 490px;
 
@@ -430,12 +388,10 @@ body {
     rgba(255, 255, 255, 0.43);
 
   border:
-    1px solid
-    rgba(255, 255, 255, 0.70);
+    1px solid rgba(255, 255, 255, 0.70);
 
   box-shadow:
-    inset 0 1px 4px
-    rgba(60, 50, 100, 0.06);
+    inset 0 1px 4px rgba(60, 50, 100, 0.06);
 }
 
 
@@ -452,14 +408,11 @@ body {
 
   border-radius: 10px;
 
-  padding:
-    11px 14px;
+  padding: 11px 14px;
 
   color: #687184;
 
-  font-family:
-    "Poppins",
-    sans-serif;
+  font-family: "Poppins", sans-serif;
 
   font-size: 16px;
 
@@ -491,8 +444,7 @@ body {
   color: white;
 
   box-shadow:
-    0 5px 13px
-    rgba(91, 66, 164, 0.27);
+    0 5px 13px rgba(91, 66, 164, 0.27);
 }
 
 
@@ -507,8 +459,7 @@ body {
 
   gap: 8px;
 
-  padding:
-    9px 11px;
+  padding: 9px 11px;
 
   margin-bottom: 11px;
 
@@ -518,8 +469,7 @@ body {
     rgba(255, 255, 255, 0.72);
 
   border:
-    1px solid
-    rgba(83, 110, 170, 0.15);
+    1px solid rgba(83, 110, 170, 0.15);
 
   color: #334155;
 
@@ -585,8 +535,7 @@ body {
 
   top: 50%;
 
-  transform:
-    translateY(-50%);
+  transform: translateY(-50%);
 
   z-index: 2;
 
@@ -607,14 +556,12 @@ body {
 
   height: 47px;
 
-  padding:
-    8px 14px 8px 42px;
+  padding: 8px 14px 8px 42px;
 
   border-radius: 12px;
 
   border:
-    1px solid
-    rgba(101, 91, 150, 0.18);
+    1px solid rgba(101, 91, 150, 0.18);
 
   outline: none;
 
@@ -623,16 +570,13 @@ body {
 
   color: #24364a;
 
-  font-family:
-    "Poppins",
-    sans-serif;
+  font-family: "Poppins", sans-serif;
 
   font-size: 15px;
 
   font-weight: 500;
 
-  transition:
-    all 0.25s ease;
+  transition: all 0.25s ease;
 }
 
 
@@ -676,11 +620,8 @@ body {
     #7555bd;
 
   box-shadow:
-    0 0 0 3px
-    rgba(117, 85, 189, 0.10),
-
-    0 5px 13px
-    rgba(117, 85, 189, 0.08);
+    0 0 0 3px rgba(117, 85, 189, 0.10),
+    0 5px 13px rgba(117, 85, 189, 0.08);
 }
 
 
@@ -727,9 +668,7 @@ body {
 
   color: white;
 
-  font-family:
-    "Poppins",
-    sans-serif;
+  font-family: "Poppins", sans-serif;
 
   font-size: 16px;
 
@@ -738,8 +677,7 @@ body {
   cursor: pointer;
 
   box-shadow:
-    0 8px 20px
-    rgba(92, 68, 164, 0.27);
+    0 8px 20px rgba(92, 68, 164, 0.27);
 
   transition:
     transform 0.2s ease,
@@ -747,17 +685,14 @@ body {
 }
 
 .auth-submit:hover {
-  transform:
-    translateY(-2px);
+  transform: translateY(-2px);
 
   box-shadow:
-    0 11px 25px
-    rgba(92, 68, 164, 0.34);
+    0 11px 25px rgba(92, 68, 164, 0.34);
 }
 
 .auth-submit:active {
-  transform:
-    translateY(0);
+  transform: translateY(0);
 }
 
 .auth-submit:disabled {
@@ -810,8 +745,7 @@ body {
 
   gap: 7px;
 
-  padding:
-    10px 7px;
+  padding: 10px 7px;
 
   border-radius: 11px;
 
@@ -819,25 +753,21 @@ body {
     rgba(255, 255, 255, 0.42);
 
   border:
-    1px solid
-    rgba(255, 255, 255, 0.65);
+    1px solid rgba(255, 255, 255, 0.65);
 
   color: #41536b;
 
-  transition:
-    all 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .auth-feature:hover {
   background:
     rgba(255, 255, 255, 0.58);
 
-  transform:
-    translateY(-1px);
+  transform: translateY(-1px);
 
   box-shadow:
-    0 4px 10px
-    rgba(60, 50, 100, 0.06);
+    0 4px 10px rgba(60, 50, 100, 0.06);
 }
 
 
@@ -877,8 +807,7 @@ body {
   padding-top: 11px;
 
   border-top:
-    1px solid
-    rgba(91, 78, 137, 0.12);
+    1px solid rgba(91, 78, 137, 0.12);
 
   color: #536273;
 
@@ -903,9 +832,7 @@ body {
 
   color: #6449a7;
 
-  font-family:
-    "Poppins",
-    sans-serif;
+  font-family: "Poppins", sans-serif;
 
   font-size: 14px;
 
@@ -941,8 +868,7 @@ body {
   padding-top: 8px;
 
   border-top:
-    1px solid
-    rgba(91, 78, 137, 0.10);
+    1px solid rgba(91, 78, 137, 0.10);
 
   color: #59687a;
 
@@ -976,7 +902,6 @@ body {
    ========================================================= */
 
 @keyframes authCardFade {
-
   from {
     opacity: 0;
 
@@ -992,7 +917,6 @@ body {
       translateY(0)
       scale(1);
   }
-
 }
 
 
@@ -1001,20 +925,17 @@ body {
    ========================================================= */
 
 @media (min-width: 1401px) {
-
   .auth-content {
-    top: 45%;
+    top: 46%;
 
-    right: 5%;
+    right: 4%;
 
     width: 560px;
 
     max-width: 560px;
 
-    transform:
-      translateY(-50%);
+    transform: translateY(-50%);
   }
-
 }
 
 
@@ -1022,22 +943,18 @@ body {
    DESKTOP
    ========================================================= */
 
-@media (min-width: 1201px)
-  and (max-width: 1400px) {
-
+@media (min-width: 1201px) and (max-width: 1400px) {
   .auth-content {
-    top: 45%;
+    top: 46%;
 
-    right: 5%;
+    right: 4%;
 
     width: 550px;
 
     max-width: 550px;
 
-    transform:
-      translateY(-50%);
+    transform: translateY(-50%);
   }
-
 }
 
 
@@ -1045,11 +962,9 @@ body {
    LAPTOP
    ========================================================= */
 
-@media (min-width: 901px)
-  and (max-width: 1200px) {
-
+@media (min-width: 901px) and (max-width: 1200px) {
   .auth-content {
-    top: 45%;
+    top: 46%;
 
     right: 4%;
 
@@ -1057,19 +972,12 @@ body {
 
     max-width: 500px;
 
-    transform:
-      translateY(-50%);
+    transform: translateY(-50%);
   }
-
 
   .auth-card {
-    padding:
-      24px 30px 20px;
-
-    max-height:
-      calc(100vh - 25px);
+    padding: 24px 30px 20px;
   }
-
 
   .auth-logo {
     width: 52px;
@@ -1079,29 +987,23 @@ body {
     font-size: 24px;
   }
 
-
   .auth-welcome {
     font-size: 29px;
   }
-
 
   .auth-description {
     font-size: 13px;
   }
 
-
   .auth-mode-btn {
     font-size: 15px;
 
-    padding:
-      10px 12px;
+    padding: 10px 12px;
   }
-
 
   .auth-input-group label {
     font-size: 14px;
   }
-
 
   .auth-input {
     height: 44px;
@@ -1109,11 +1011,9 @@ body {
     font-size: 14px;
   }
 
-
   .auth-input::placeholder {
     font-size: 13px;
   }
-
 
   .auth-submit {
     height: 46px;
@@ -1121,16 +1021,13 @@ body {
     font-size: 15px;
   }
 
-
   .auth-feature span {
     font-size: 16px;
   }
 
-
   .auth-feature small {
     font-size: 12px;
   }
-
 }
 
 
@@ -1139,44 +1036,45 @@ body {
    ========================================================= */
 
 @media (max-width: 900px) {
+  .auth-page {
+    position: fixed;
 
-  /*
-     DO NOT PUT overflow-y:auto HERE.
+    inset: 0;
 
-     The PAGE must remain fixed.
-     Only the card scrolls.
-  */
+    width: 100vw;
+
+    height: 100vh;
+
+    overflow: hidden;
+  }
 
   .auth-content {
+    position: absolute;
+
     top: 50%;
 
     right: 50%;
 
     width: 500px;
 
-    max-width:
-      calc(100vw - 30px);
+    max-width: calc(100vw - 30px);
 
-    transform:
-      translate(50%, -50%);
+    transform: translate(50%, -50%);
   }
-
 
   .auth-card {
-    max-height:
-      calc(100vh - 24px);
-
-    padding:
-      24px 28px 20px;
+    padding: 24px 28px 20px;
 
     border-radius: 24px;
-  }
 
+    max-height: calc(100vh - 25px);
+
+    overflow-y: auto;
+  }
 
   .auth-welcome {
     font-size: 29px;
   }
-
 }
 
 
@@ -1185,12 +1083,17 @@ body {
    ========================================================= */
 
 @media (max-width: 600px) {
+  .auth-page {
+    position: fixed;
 
-  /*
-     NO PAGE SCROLL.
+    inset: 0;
 
-     The card handles scrolling.
-  */
+    width: 100vw;
+
+    height: 100vh;
+
+    overflow: hidden;
+  }
 
   .auth-content {
     position: absolute;
@@ -1201,24 +1104,20 @@ body {
 
     width: 430px;
 
-    max-width:
-      calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
 
-    transform:
-      translate(50%, -50%);
+    transform: translate(50%, -50%);
   }
-
 
   .auth-card {
-    max-height:
-      calc(100vh - 18px);
-
-    padding:
-      19px 17px 17px;
+    padding: 19px 17px 17px;
 
     border-radius: 20px;
-  }
 
+    max-height: calc(100vh - 18px);
+
+    overflow-y: auto;
+  }
 
   .auth-logo {
     width: 48px;
@@ -1230,11 +1129,9 @@ body {
     font-size: 22px;
   }
 
-
   .auth-welcome {
     font-size: 23px;
   }
-
 
   .auth-description {
     font-size: 11px;
@@ -1242,24 +1139,19 @@ body {
     line-height: 1.4;
   }
 
-
   .auth-mode-btn {
     font-size: 14px;
 
-    padding:
-      9px 8px;
+    padding: 9px 8px;
   }
-
 
   .auth-input-group {
     margin-bottom: 9px;
   }
 
-
   .auth-input-group label {
     font-size: 13px;
   }
-
 
   .auth-input {
     height: 41px;
@@ -1267,11 +1159,9 @@ body {
     font-size: 13px;
   }
 
-
   .auth-input::placeholder {
     font-size: 12px;
   }
-
 
   .auth-submit {
     height: 44px;
@@ -1279,39 +1169,31 @@ body {
     font-size: 14px;
   }
 
-
   .auth-features {
     gap: 5px;
   }
 
-
   .auth-feature {
     gap: 4px;
 
-    padding:
-      8px 4px;
+    padding: 8px 4px;
   }
-
 
   .auth-feature span {
     font-size: 14px;
   }
 
-
   .auth-feature small {
     font-size: 10px;
   }
-
 
   .auth-toggle {
     font-size: 11px;
   }
 
-
   .auth-toggle-btn {
     font-size: 12px;
   }
-
 
   .auth-footer {
     gap: 5px;
@@ -1319,25 +1201,26 @@ body {
     font-size: 8px;
   }
 
-
   .auth-brand {
     font-size: 9px;
   }
-
 }
 
 
 /* =========================================================
    SHORT DESKTOP SCREEN
+
+   Card remains slightly lower but scales down
+   so the whole card fits inside the screen.
+
+   Only the card can scroll.
    ========================================================= */
 
-@media (max-height: 700px)
-  and (min-width: 901px) {
-
+@media (max-height: 700px) and (min-width: 901px) {
   .auth-content {
-    top: 46%;
+    top: 47%;
 
-    right: 5%;
+    right: 4%;
 
     width: 540px;
 
@@ -1347,16 +1230,14 @@ body {
       translateY(-50%)
       scale(0.90);
 
-    transform-origin:
-      center center;
+    transform-origin: center center;
   }
-
 
   .auth-card {
-    max-height:
-      calc(100vh - 20px);
-  }
+    max-height: calc(100vh - 20px);
 
+    overflow-y: auto;
+  }
 }
 
 
@@ -1364,13 +1245,11 @@ body {
    VERY SHORT DESKTOP SCREEN
    ========================================================= */
 
-@media (max-height: 600px)
-  and (min-width: 901px) {
-
+@media (max-height: 600px) and (min-width: 901px) {
   .auth-content {
-    top: 46%;
+    top: 47%;
 
-    right: 5%;
+    right: 4%;
 
     width: 530px;
 
@@ -1380,14 +1259,12 @@ body {
       translateY(-50%)
       scale(0.82);
 
-    transform-origin:
-      center center;
+    transform-origin: center center;
   }
-
 
   .auth-card {
-    max-height:
-      calc(100vh - 15px);
-  }
+    max-height: calc(100vh - 15px);
 
+    overflow-y: auto;
+  }
 }
