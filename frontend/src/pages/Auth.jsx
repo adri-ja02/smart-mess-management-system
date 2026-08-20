@@ -35,7 +35,7 @@ function Auth() {
           password: form.password,
         });
 
-        // ROLE REDIRECT
+        // ROLE BASED REDIRECT
         if (user.role === "admin") {
           navigate("/admin");
         } else if (user.role === "manager") {
@@ -69,7 +69,7 @@ function Auth() {
     } catch (err) {
       setMessage(
         err.response?.data?.message ||
-          "Something went wrong"
+          "Something went wrong. Please try again."
       );
     }
   };
@@ -90,57 +90,47 @@ function Auth() {
     <div className="auth-page">
 
       {/* =====================================================
-          BACKGROUND
+          FULL BACKGROUND
           ===================================================== */}
 
       <div className="auth-background"></div>
 
+
       {/* =====================================================
-          MAIN CONTENT
+          RIGHT SIDE AUTH CONTENT
           ===================================================== */}
 
       <div className="auth-content">
 
-        {/* ===================================================
-            GLASS LOGIN / REGISTER CARD
-            =================================================== */}
-
         <div className="auth-card">
 
-          {/* Logo */}
-          <div className="auth-logo">
-            🏠
-          </div>
+          {/* =================================================
+              HEADER
+              ================================================= */}
 
-          {/* Header */}
           <div className="auth-header">
 
-            <h1 className="auth-title">
-              Smart Student
-            </h1>
-
-            <h1 className="auth-title auth-title-green">
-              Mess & SpaceFit
-            </h1>
-
-            <h2 className="auth-system-title">
-              Room Allocation System
-            </h2>
-
-            <div className="auth-line">
-              <span></span>
-              <span className="auth-leaf">🌿</span>
-              <span></span>
+            <div className="auth-logo">
+              🏠
             </div>
 
-            <p className="auth-subtitle">
-              Smart Management • Better Living
+            <h1 className="auth-welcome">
+              {isLogin
+                ? "Welcome Back!"
+                : "Create Account"}
+            </h1>
+
+            <p className="auth-description">
+              {isLogin
+                ? "Login to access your Smart Mess & SpaceFit account"
+                : "Join Smart Student Mess & SpaceFit"}
             </p>
 
           </div>
 
+
           {/* =================================================
-              LOGIN / REGISTER INDICATOR
+              LOGIN / REGISTER SWITCH
               ================================================= */}
 
           <div className="auth-mode">
@@ -161,6 +151,7 @@ function Auth() {
               🔑 Login
             </button>
 
+
             <button
               type="button"
               className={
@@ -179,13 +170,25 @@ function Auth() {
 
           </div>
 
-          {/* Message */}
+
+          {/* =================================================
+              MESSAGE
+              ================================================= */}
+
           {message && (
             <div className="auth-message">
-              <span>ℹ️</span>
-              <span>{message}</span>
+
+              <span className="message-icon">
+                ℹ️
+              </span>
+
+              <span>
+                {message}
+              </span>
+
             </div>
           )}
+
 
           {/* =================================================
               FORM
@@ -194,11 +197,12 @@ function Auth() {
           <form onSubmit={handleSubmit}>
 
             {/* FULL NAME */}
+
             {!isLogin && (
               <div className="auth-input-group">
 
                 <label>
-                  👤 Full Name
+                  Full Name
                 </label>
 
                 <div className="auth-input-wrapper">
@@ -222,11 +226,13 @@ function Auth() {
               </div>
             )}
 
+
             {/* EMAIL */}
+
             <div className="auth-input-group">
 
               <label>
-                📧 Email Address
+                Email Address
               </label>
 
               <div className="auth-input-wrapper">
@@ -249,11 +255,13 @@ function Auth() {
 
             </div>
 
+
             {/* PASSWORD */}
+
             <div className="auth-input-group">
 
               <label>
-                🔐 Password
+                Password
               </label>
 
               <div className="auth-input-wrapper">
@@ -276,12 +284,14 @@ function Auth() {
 
             </div>
 
+
             {/* ROLE */}
+
             {!isLogin && (
               <div className="auth-input-group">
 
                 <label>
-                  🎓 Account Type
+                  Account Type
                 </label>
 
                 <div className="auth-input-wrapper">
@@ -296,6 +306,7 @@ function Auth() {
                     value={form.role}
                     onChange={handleChange}
                   >
+
                     <option value="student">
                       Student
                     </option>
@@ -307,6 +318,7 @@ function Auth() {
                     <option value="admin">
                       Administrator
                     </option>
+
                   </select>
 
                 </div>
@@ -314,23 +326,30 @@ function Auth() {
               </div>
             )}
 
-            {/* SUBMIT BUTTON */}
+
+            {/* =================================================
+                SUBMIT BUTTON
+                ================================================= */}
+
             <button
               type="submit"
               className="auth-submit"
             >
+
               <span>
                 {isLogin
-                  ? "🔑 Login"
+                  ? "🔑 Login to Account"
                   : "✨ Create Account"}
               </span>
 
               <span className="auth-arrow">
                 →
               </span>
+
             </button>
 
           </form>
+
 
           {/* =================================================
               FEATURES
@@ -339,24 +358,48 @@ function Auth() {
           <div className="auth-features">
 
             <div className="auth-feature">
-              <span>🛏️</span>
-              <small>Smart Rooms</small>
+
+              <span>
+                🛏️
+              </span>
+
+              <small>
+                Smart Rooms
+              </small>
+
             </div>
 
-            <div className="auth-feature">
-              <span>🍽️</span>
-              <small>Smart Mess</small>
-            </div>
 
             <div className="auth-feature">
-              <span>📊</span>
-              <small>Smart Insights</small>
+
+              <span>
+                🍽️
+              </span>
+
+              <small>
+                Smart Mess
+              </small>
+
+            </div>
+
+
+            <div className="auth-feature">
+
+              <span>
+                📊
+              </span>
+
+              <small>
+                Smart Insights
+              </small>
+
             </div>
 
           </div>
 
+
           {/* =================================================
-              TOGGLE
+              LOGIN / REGISTER TOGGLE
               ================================================= */}
 
           <div className="auth-toggle">
@@ -379,26 +422,40 @@ function Auth() {
 
           </div>
 
+
           {/* =================================================
               FOOTER
               ================================================= */}
 
           <div className="auth-footer">
 
-            <div>
-              🛡️ Secure &nbsp; • &nbsp;
-              ⚡ Real-time &nbsp; • &nbsp;
-              ☁️ Cloud Based
-            </div>
+            <span>
+              🛡️ Secure
+            </span>
 
-            <div className="auth-footer-title">
-              Smart Student Mess & SpaceFit
-            </div>
+            <span>•</span>
+
+            <span>
+              ⚡ Real-time
+            </span>
+
+            <span>•</span>
+
+            <span>
+              ☁️ Cloud Based
+            </span>
 
           </div>
 
+
+          <div className="auth-brand">
+            Smart Student Mess & SpaceFit
+          </div>
+
         </div>
+
       </div>
+
     </div>
   );
 }

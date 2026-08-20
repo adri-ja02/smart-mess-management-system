@@ -1,65 +1,79 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
+
+  /* =========================================================
+     HIDE NAVBAR ON LOGIN / REGISTER PAGE
+     ========================================================= */
+
+  if (location.pathname === "/auth") {
+    return null;
+  }
+
+  /* =========================================================
+     LOGOUT
+     ========================================================= */
 
   const handleLogout = () => {
     logout();
     navigate("/auth");
   };
 
-  // Get only the first name
+  /* =========================================================
+     GET FIRST NAME
+     ========================================================= */
+
   const getFirstName = () => {
-    if (!user?.name) return "User";
+    if (!user?.name) {
+      return "User";
+    }
 
     return user.name.trim().split(" ")[0];
   };
 
   return (
-    <nav
-      className="navbar navbar-expand-lg navbar-dark shadow"
-      style={{
-        background:
-          "linear-gradient(135deg, #28324A, #171D2E)",
-        padding: "10px 0",
-      }}
-    >
-      <div className="container">
+    <nav className="main-navbar navbar navbar-expand-xl navbar-dark">
+
+      <div className="navbar-container">
 
         {/* =====================================================
             PROJECT TITLE
-        ===================================================== */}
+            ===================================================== */}
 
         <Link
-          className="navbar-brand project-title"
           to="/"
+          className="project-title"
         >
-          <span>
+
+          <span className="project-title-main">
             Smart Student Mess
           </span>
 
           <span className="title-ampersand">
-            &amp;
+            &
           </span>
 
-          <span>
+          <span className="project-title-sub">
             SpaceFit Room Allocation System
           </span>
+
         </Link>
 
 
         {/* =====================================================
             MOBILE TOGGLER
-        ===================================================== */}
+            ===================================================== */}
 
         <button
-          className="navbar-toggler border-0"
+          className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
+          data-bs-target="#mainNavbar"
+          aria-controls="mainNavbar"
           aria-expanded="false"
           aria-label="Toggle navigation"
         >
@@ -68,697 +82,960 @@ function Navbar() {
 
 
         {/* =====================================================
-            NAVIGATION MENU
-        ===================================================== */}
+            NAVIGATION
+            ===================================================== */}
 
         <div
           className="collapse navbar-collapse"
-          id="navbarNav"
+          id="mainNavbar"
         >
-          <ul className="navbar-nav ms-auto align-items-center gap-2">
 
+          <div className="navbar-menu">
 
             {/* =================================================
                 NOT LOGGED IN
-            ================================================= */}
+                ================================================= */}
 
             {!user && (
-              <li className="nav-item">
-                <Link
-                  className="nav-box"
-                  to="/auth"
-                >
-                  Login / Register
-                </Link>
-              </li>
+              <Link
+                to="/auth"
+                className="nav-box login-box"
+              >
+                Login / Register
+              </Link>
             )}
 
 
             {/* =================================================
                 LOGGED IN USERS
-            ================================================= */}
+                ================================================= */}
 
             {user && (
               <>
 
                 {/* =============================================
-                    STUDENT DASHBOARD
-                ============================================= */}
+                    STUDENT / MANAGER DASHBOARD
+                    ============================================= */}
 
-                {user.role === "student" && (
-                  <li className="nav-item">
-                    <Link
-                      className="nav-box"
-                      to="/student"
-                    >
-                      Dashboard
-                    </Link>
-                  </li>
-                )}
+                {(user.role === "student" ||
+                  user.role === "manager") && (
 
+                  <Link
+                    to={
+                      user.role === "student"
+                        ? "/student"
+                        : "/manager"
+                    }
+                    className="nav-box"
+                  >
+                    Dashboard
+                  </Link>
 
-                {/* =============================================
-                    MANAGER DASHBOARD
-                ============================================= */}
-
-                {user.role === "manager" && (
-                  <li className="nav-item">
-                    <Link
-                      className="nav-box"
-                      to="/manager"
-                    >
-                      Dashboard
-                    </Link>
-                  </li>
                 )}
 
 
                 {/* =============================================
                     MEAL PLANNER
-                ============================================= */}
+                    ============================================= */}
 
                 {(user.role === "student" ||
                   user.role === "manager") && (
-                  <li className="nav-item">
-                    <Link
-                      className="nav-box"
-                      to="/meal-planner"
-                    >
-                      Meal Planner
-                    </Link>
-                  </li>
+
+                  <Link
+                    to="/meal-planner"
+                    className="nav-box"
+                  >
+                    Meal Planner
+                  </Link>
+
                 )}
 
 
                 {/* =============================================
                     MEAL CHECK-IN
-                ============================================= */}
+                    ============================================= */}
 
                 {(user.role === "student" ||
                   user.role === "manager") && (
-                  <li className="nav-item">
-                    <Link
-                      className="nav-box"
-                      to="/meal-checkin"
-                    >
-                      Meal Check-in
-                    </Link>
-                  </li>
+
+                  <Link
+                    to="/meal-checkin"
+                    className="nav-box"
+                  >
+                    Meal Check-in
+                  </Link>
+
                 )}
 
 
                 {/* =============================================
                     BILLING
-                ============================================= */}
+                    ============================================= */}
 
-                <li className="nav-item">
-                  <Link
-                    className="nav-box"
-                    to="/billing"
-                  >
-                    Billing
-                  </Link>
-                </li>
+                <Link
+                  to="/billing"
+                  className="nav-box"
+                >
+                  Billing
+                </Link>
 
 
                 {/* =============================================
                     FORECAST
-                ============================================= */}
+                    ============================================= */}
 
-                <li className="nav-item">
-                  <Link
-                    className="nav-box"
-                    to="/forecast"
-                  >
-                    Forecast
-                  </Link>
-                </li>
+                <Link
+                  to="/forecast"
+                  className="nav-box"
+                >
+                  Forecast
+                </Link>
 
 
                 {/* =============================================
                     FOOD WASTE
-                ============================================= */}
+                    ============================================= */}
 
-                <li className="nav-item">
-                  <Link
-                    className="nav-box"
-                    to="/food-waste"
-                  >
-                    Food Waste
-                  </Link>
-                </li>
+                <Link
+                  to="/food-waste"
+                  className="nav-box"
+                >
+                  Food Waste
+                </Link>
 
 
                 {/* =============================================
-                    ADMIN
-                ============================================= */}
+                    ADMIN PANEL
+                    ============================================= */}
 
                 {user.role === "admin" && (
-                  <li className="nav-item">
-                    <Link
-                      className="nav-box"
-                      to="/admin"
-                    >
-                      Admin Panel
-                    </Link>
-                  </li>
+
+                  <Link
+                    to="/admin"
+                    className="nav-box admin-box"
+                  >
+                    Admin Panel
+                  </Link>
+
                 )}
 
 
-                {/* =================================================
-                    PROFILE PHOTO + FIRST NAME
-                ================================================= */}
+                {/* =============================================
+                    PROFILE
+                    ============================================= */}
 
-                <li className="nav-item">
-                  <div
-                    className="profile-box"
-                    onClick={() => navigate("/profile")}
-                    title="View Profile"
-                  >
+                <div
+                  className="profile-box"
+                  onClick={() => navigate("/profile")}
+                  title="View Profile"
+                >
 
-                    {/* PROFILE PHOTO */}
+                  {user.profilePhoto ? (
 
-                    {user.profilePhoto ? (
-                      <img
-                        src={user.profilePhoto}
-                        alt="Profile"
-                        className="profile-photo"
-                      />
-                    ) : (
-                      <div className="profile-placeholder">
-                        {user.name
-                          ?.charAt(0)
-                          ?.toUpperCase() || "U"}
-                      </div>
-                    )}
+                    <img
+                      src={user.profilePhoto}
+                      alt="Profile"
+                      className="profile-photo"
+                    />
 
+                  ) : (
 
-                    {/* FIRST NAME ONLY */}
+                    <div className="profile-placeholder">
+                      {user.name
+                        ?.charAt(0)
+                        ?.toUpperCase() || "U"}
+                    </div>
 
-                    <span className="profile-name">
-                      {getFirstName()}
-                    </span>
+                  )}
 
-                  </div>
-                </li>
+                  <span className="profile-name">
+                    {getFirstName()}
+                  </span>
+
+                </div>
 
 
-                {/* =================================================
+                {/* =============================================
                     LOGOUT
-                ================================================= */}
+                    ============================================= */}
 
-                <li className="nav-item">
-                  <button
-                    type="button"
-                    className="logout-box"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </button>
-                </li>
+                <button
+                  type="button"
+                  className="logout-box"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
 
               </>
             )}
 
-          </ul>
+          </div>
+
         </div>
+
       </div>
 
 
       {/* =========================================================
-          NAVBAR STYLING
-      ========================================================= */}
+          NAVBAR CSS
+          ========================================================= */}
 
       <style>
         {`
 
-          /* =====================================================
-             PROJECT TITLE
-          ===================================================== */
+        /* =====================================================
+           GLOBAL
+           ===================================================== */
+
+        .main-navbar,
+        .main-navbar * {
+          box-sizing: border-box;
+        }
+
+
+        /* =====================================================
+           NAVBAR
+           ===================================================== */
+
+        .main-navbar {
+          width: 100%;
+
+          min-height: 82px;
+
+          background:
+            linear-gradient(
+              135deg,
+              #28324A,
+              #171D2E
+            );
+
+          border-bottom:
+            1px solid rgba(255, 255, 255, 0.14);
+
+          box-shadow:
+            0 5px 18px rgba(0, 0, 0, 0.25);
+
+          position: relative;
+
+          z-index: 1000;
+        }
+
+
+        /* =====================================================
+           CONTAINER
+           ===================================================== */
+
+        .navbar-container {
+          width: 100%;
+
+          max-width: 100%;
+
+          margin: 0 auto;
+
+          padding:
+            11px 24px;
+
+          display: flex;
+
+          align-items: center;
+
+          gap: 22px;
+        }
+
+
+        /* =====================================================
+           PROJECT TITLE
+           ===================================================== */
+
+        .project-title {
+          flex: 0 1 auto;
+
+          min-width: 0;
+
+          max-width: 600px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: flex-start;
+
+          flex-wrap: wrap;
+
+          gap: 8px;
+
+          color: #ffffff !important;
+
+          text-decoration: none !important;
+
+          line-height: 1.15;
+
+          transition:
+            all 0.25s ease;
+        }
+
+
+        .project-title:hover {
+          transform:
+            translateY(-1px);
+        }
+
+
+        /* =====================================================
+           MAIN PROJECT TITLE
+           ===================================================== */
+
+        .project-title-main {
+          color: #ffffff;
+
+          font-size: 28px;
+
+          font-weight: 800;
+
+          letter-spacing: 0.2px;
+
+          white-space: nowrap;
+
+          text-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.30);
+        }
+
+
+        /* =====================================================
+           AMPERSAND
+           ===================================================== */
+
+        .title-ampersand {
+          width: 34px;
+
+          height: 34px;
+
+          flex-shrink: 0;
+
+          display: inline-flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          border-radius: 50%;
+
+          background:
+            linear-gradient(
+              135deg,
+              #7050bd,
+              #554197
+            );
+
+          color: #ffffff;
+
+          font-size: 21px;
+
+          font-weight: 800;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.45);
+
+          box-shadow:
+            0 3px 8px rgba(0, 0, 0, 0.30);
+        }
+
+
+        /* =====================================================
+           SPACEFIT TITLE
+           ===================================================== */
+
+        .project-title-sub {
+          color: #ddd6ff;
+
+          font-size: 20px;
+
+          font-weight: 750;
+
+          white-space: nowrap;
+
+          text-shadow:
+            0 1px 4px rgba(0, 0, 0, 0.25);
+        }
+
+
+        /* =====================================================
+           MOBILE TOGGLER
+           ===================================================== */
+
+        .navbar-toggler {
+          margin-left: auto;
+
+          flex-shrink: 0;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.35);
+
+          border-radius: 9px;
+
+          padding:
+            7px 10px;
+
+          box-shadow: none !important;
+        }
+
+
+        .navbar-toggler:focus {
+          box-shadow:
+            0 0 0 3px
+            rgba(255, 255, 255, 0.10)
+            !important;
+        }
+
+
+        /* =====================================================
+           COLLAPSE
+           ===================================================== */
+
+        .navbar-collapse {
+          flex: 1;
+
+          min-width: 0;
+
+          justify-content: flex-end;
+        }
+
+
+        /* =====================================================
+           NAVIGATION MENU
+           ===================================================== */
+
+        .navbar-menu {
+          width: 100%;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: flex-end;
+
+          flex-wrap: wrap;
+
+          gap: 7px;
+        }
+
+
+        /* =====================================================
+           COMMON NAV BOX
+           ===================================================== */
+
+        .nav-box,
+        .logout-box,
+        .profile-box {
+          min-height: 43px;
+
+          flex-shrink: 0;
+
+          border-radius: 10px;
+        }
+
+
+        /* =====================================================
+           NAVIGATION BUTTON
+           ===================================================== */
+
+        .nav-box {
+          display: inline-flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          padding:
+            8px 14px;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.30);
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          color: #ffffff !important;
+
+          text-decoration: none !important;
+
+          font-family:
+            "Poppins",
+            sans-serif;
+
+          font-size: 14px;
+
+          font-weight: 700;
+
+          line-height: 1;
+
+          white-space: nowrap;
+
+          box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.18);
+
+          transition:
+            all 0.2s ease;
+        }
+
+
+        /* =====================================================
+           NAVIGATION HOVER
+           ===================================================== */
+
+        .nav-box:hover {
+          background: #ffffff;
+
+          color: #28324A !important;
+
+          border-color: #ffffff;
+
+          transform:
+            translateY(-2px);
+
+          box-shadow:
+            0 5px 12px rgba(0, 0, 0, 0.25);
+        }
+
+
+        /* =====================================================
+           ADMIN
+           ===================================================== */
+
+        .admin-box {
+          min-width: 120px;
+
+          background:
+            rgba(112, 80, 189, 0.25);
+
+          border-color:
+            rgba(190, 170, 255, 0.45);
+        }
+
+
+        /* =====================================================
+           LOGIN
+           ===================================================== */
+
+        .login-box {
+          min-width: 150px;
+        }
+
+
+        /* =====================================================
+           PROFILE
+           ===================================================== */
+
+        .profile-box {
+          display: inline-flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          gap: 8px;
+
+          padding:
+            4px 12px 4px 6px;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          border:
+            1px solid rgba(255, 255, 255, 0.32);
+
+          cursor: pointer;
+
+          white-space: nowrap;
+
+          transition:
+            all 0.2s ease;
+        }
+
+
+        .profile-box:hover {
+          background:
+            rgba(255, 255, 255, 0.18);
+
+          border-color:
+            rgba(255, 255, 255, 0.70);
+
+          transform:
+            translateY(-2px);
+
+          box-shadow:
+            0 5px 12px rgba(0, 0, 0, 0.25);
+        }
+
+
+        /* =====================================================
+           PROFILE PHOTO
+           ===================================================== */
+
+        .profile-photo {
+          width: 35px;
+
+          height: 35px;
+
+          flex-shrink: 0;
+
+          border-radius: 50%;
+
+          object-fit: cover;
+
+          border:
+            2px solid #ffffff;
+
+          box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.30);
+        }
+
+
+        /* =====================================================
+           PROFILE PLACEHOLDER
+           ===================================================== */
+
+        .profile-placeholder {
+          width: 35px;
+
+          height: 35px;
+
+          flex-shrink: 0;
+
+          border-radius: 50%;
+
+          background:
+            #ffffff;
+
+          color:
+            #28324A;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          font-size: 16px;
+
+          font-weight: 800;
+
+          border:
+            2px solid #ffffff;
+
+          box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.25);
+        }
+
+
+        /* =====================================================
+           USER NAME
+           ===================================================== */
+
+        .profile-name {
+          display: inline-block;
+
+          max-width: 105px;
+
+          overflow: hidden;
+
+          text-overflow: ellipsis;
+
+          white-space: nowrap;
+
+          color: #ffffff;
+
+          font-size: 14px;
+
+          font-weight: 700;
+
+          letter-spacing: 0.1px;
+
+          text-shadow:
+            0 1px 3px rgba(0, 0, 0, 0.30);
+        }
+
+
+        /* =====================================================
+           LOGOUT
+           ===================================================== */
+
+        .logout-box {
+          display: inline-flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          min-width: 82px;
+
+          padding:
+            8px 15px;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.40);
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          color: #ffffff;
+
+          font-family:
+            "Poppins",
+            sans-serif;
+
+          font-size: 14px;
+
+          font-weight: 700;
+
+          cursor: pointer;
+
+          white-space: nowrap;
+
+          box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.18);
+
+          transition:
+            all 0.2s ease;
+        }
+
+
+        /* =====================================================
+           LOGOUT HOVER
+           ===================================================== */
+
+        .logout-box:hover {
+          background: #ffffff;
+
+          color: #28324A;
+
+          border-color: #ffffff;
+
+          transform:
+            translateY(-2px);
+
+          box-shadow:
+            0 5px 12px rgba(0, 0, 0, 0.25);
+        }
+
+
+        /* =====================================================
+           LARGE DESKTOP
+           ===================================================== */
+
+        @media (min-width: 1500px) {
+
+          .navbar-container {
+            padding:
+              12px 30px;
+
+            gap: 25px;
+          }
+
+          .project-title-main {
+            font-size: 29px;
+          }
+
+          .project-title-sub {
+            font-size: 21px;
+          }
+
+          .nav-box,
+          .logout-box {
+            font-size: 14px;
+          }
+        }
+
+
+        /* =====================================================
+           LAPTOP
+           ===================================================== */
+
+        @media (max-width: 1499px) and (min-width: 1200px) {
+
+          .navbar-container {
+            padding:
+              10px 16px;
+
+            gap: 12px;
+          }
 
           .project-title {
-            display: flex;
-
-            align-items: center;
-
-            flex-wrap: wrap;
-
-            gap: 7px;
-
-            max-width: 520px;
-
-            color: #ffffff !important;
-
-            text-decoration: none !important;
-
-            font-size: 22px;
-
-            font-weight: 800;
-
-            line-height: 1.2;
-
-            letter-spacing: 0.2px;
-
-            text-shadow:
-              0 2px 5px rgba(0, 0, 0, 0.35);
-
-            transition:
-              all 0.25s ease;
+            max-width: 420px;
           }
 
-
-          .project-title:hover {
-            color: #ffffff !important;
-
-            transform:
-              translateY(-1px);
-
-            text-shadow:
-              0 3px 9px rgba(0, 0, 0, 0.45);
+          .project-title-main {
+            font-size: 21px;
           }
 
-
-          /* =====================================================
-             AMPERSAND
-          ===================================================== */
+          .project-title-sub {
+            font-size: 15px;
+          }
 
           .title-ampersand {
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
             width: 28px;
 
             height: 28px;
 
-            border-radius: 50%;
-
-            background:
-              rgba(255, 255, 255, 0.15);
-
-            border:
-              1px solid rgba(255, 255, 255, 0.35);
-
-            font-size: 18px;
-
-            font-weight: 800;
-
-            color: #ffffff;
-
-            box-shadow:
-              0 2px 7px rgba(0, 0, 0, 0.25);
+            font-size: 17px;
           }
 
-
-          /* =====================================================
-             NAVIGATION BOXES
-          ===================================================== */
-
-          .nav-box {
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            min-height: 38px;
-
-            padding: 7px 11px;
-
-            border-radius: 10px;
-
-            border:
-              1px solid rgba(255, 255, 255, 0.32);
-
-            background:
-              rgba(255, 255, 255, 0.08);
-
-            color: #ffffff !important;
-
-            text-decoration: none !important;
-
+          .nav-box,
+          .logout-box {
             font-size: 13px;
 
-            font-weight: 600;
-
-            white-space: nowrap;
-
-            box-shadow:
-              0 2px 5px rgba(0, 0, 0, 0.18);
-
-            transition:
-              all 0.2s ease;
-          }
-
-
-          /* =====================================================
-             NAVIGATION HOVER
-          ===================================================== */
-
-          .nav-box:hover {
-            background: #ffffff;
-
-            color: #28324A !important;
-
-            border-color: #ffffff;
-
-            transform:
-              translateY(-2px);
-
-            box-shadow:
-              0 4px 10px rgba(0, 0, 0, 0.25);
-          }
-
-
-          /* =====================================================
-             PROFILE BOX
-          ===================================================== */
-
-          .profile-box {
-            min-height: 38px;
-
             padding:
-              4px 11px 4px 6px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            gap: 8px;
-
-            border-radius: 10px;
-
-            border:
-              1px solid rgba(255, 255, 255, 0.32);
-
-            background:
-              rgba(255, 255, 255, 0.08);
-
-            cursor: pointer;
-
-            transition:
-              all 0.2s ease;
-
-            white-space: nowrap;
+              7px 9px;
           }
 
+          .profile-name {
+            max-width: 70px;
 
-          /* =====================================================
-             PROFILE HOVER
-          ===================================================== */
-
-          .profile-box:hover {
-            background:
-              rgba(255, 255, 255, 0.18);
-
-            border-color:
-              rgba(255, 255, 255, 0.65);
-
-            transform:
-              translateY(-2px);
-
-            box-shadow:
-              0 4px 10px rgba(0, 0, 0, 0.25);
+            font-size: 13px;
           }
 
-
-          /* =====================================================
-             PROFILE PHOTO
-          ===================================================== */
-
-          .profile-photo {
-            width: 31px;
-
-            height: 31px;
-
-            flex-shrink: 0;
-
-            border-radius: 50%;
-
-            object-fit: cover;
-
-            border:
-              2px solid #ffffff;
-
-            box-shadow:
-              0 2px 5px rgba(0, 0, 0, 0.30);
-          }
-
-
-          /* =====================================================
-             PROFILE PLACEHOLDER
-          ===================================================== */
-
+          .profile-photo,
           .profile-placeholder {
             width: 31px;
 
             height: 31px;
+          }
+        }
 
-            flex-shrink: 0;
 
-            border-radius: 50%;
+        /* =====================================================
+           TABLET
+           ===================================================== */
 
-            background: #ffffff;
+        @media (max-width: 1199px) {
 
-            color: #28324A;
+          .navbar-container {
+            padding:
+              10px 18px;
+          }
+
+          .project-title {
+            max-width: 75%;
+          }
+
+          .project-title-main {
+            font-size: 20px;
+          }
+
+          .project-title-sub {
+            font-size: 15px;
+          }
+
+          .title-ampersand {
+            width: 27px;
+
+            height: 27px;
+
+            font-size: 17px;
+          }
+
+          .navbar-menu {
+            width: 100%;
+
+            padding-top: 15px;
+
+            padding-bottom: 8px;
 
             display: flex;
 
-            align-items: center;
+            flex-direction: column;
 
-            justify-content: center;
+            align-items: stretch;
 
-            font-size: 14px;
-
-            font-weight: 800;
-
-            border:
-              2px solid #ffffff;
-
-            box-shadow:
-              0 2px 5px rgba(0, 0, 0, 0.25);
+            gap: 6px;
           }
 
+          .nav-box,
+          .logout-box,
+          .profile-box {
+            width: 100%;
 
-          /* =====================================================
-             FIRST NAME
-          ===================================================== */
-
-          .profile-name {
-            display: inline-block;
-
-            max-width: 110px;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
-
-            white-space: nowrap;
-
-            color: #ffffff;
-
-            font-size: 13px;
-
-            font-weight: 700;
-
-            letter-spacing: 0.1px;
-
-            text-shadow:
-              0 1px 3px rgba(0, 0, 0, 0.30);
+            min-height: 46px;
           }
 
-
-          /* =====================================================
-             LOGOUT
-          ===================================================== */
-
+          .nav-box,
           .logout-box {
-            min-height: 38px;
+            justify-content: flex-start;
 
             padding:
-              7px 13px;
+              9px 15px;
 
-            border-radius: 10px;
-
-            border:
-              1px solid rgba(255, 255, 255, 0.50);
-
-            background:
-              rgba(255, 255, 255, 0.08);
-
-            color: #ffffff;
-
-            font-size: 13px;
-
-            font-weight: 600;
-
-            cursor: pointer;
-
-            box-shadow:
-              0 2px 5px rgba(0, 0, 0, 0.18);
-
-            transition:
-              all 0.2s ease;
+            font-size: 15px;
           }
 
+          .profile-box {
+            justify-content: flex-start;
 
-          /* =====================================================
-             LOGOUT HOVER
-          ===================================================== */
-
-          .logout-box:hover {
-            background: #ffffff;
-
-            color: #28324A;
-
-            border-color: #ffffff;
-
-            transform:
-              translateY(-2px);
-
-            box-shadow:
-              0 4px 10px rgba(0, 0, 0, 0.25);
+            padding:
+              5px 12px;
           }
 
+          .profile-name {
+            max-width: none;
 
-          /* =====================================================
-             TABLET
-          ===================================================== */
-
-          @media (max-width: 1200px) {
-
-            .project-title {
-              font-size: 19px;
-
-              max-width: 400px;
-            }
+            font-size: 15px;
+          }
+        }
 
 
-            .nav-box {
-              font-size: 12px;
+        /* =====================================================
+           MOBILE
+           ===================================================== */
 
-              padding:
-                6px 8px;
-            }
+        @media (max-width: 576px) {
 
-
-            .profile-name {
-              max-width: 90px;
-
-              font-size: 12px;
-            }
-
+          .main-navbar {
+            min-height: 70px;
           }
 
-
-          /* =====================================================
-             MOBILE
-          ===================================================== */
-
-          @media (max-width: 991px) {
-
-            .project-title {
-              font-size: 18px;
-
-              max-width: 75%;
-
-              line-height: 1.25;
-            }
-
-
-            .title-ampersand {
-              width: 24px;
-
-              height: 24px;
-
-              font-size: 16px;
-            }
-
-
-            .navbar-nav {
-              padding-top: 15px;
-
-              align-items:
-                stretch !important;
-            }
-
-
-            .nav-box {
-              width: 100%;
-
-              margin: 3px 0;
-
-              font-size: 14px;
-            }
-
-
-            .profile-box {
-              width: 100%;
-
-              height: 44px;
-
-              margin: 3px 0;
-
-              padding:
-                5px 12px;
-
-              justify-content:
-                flex-start;
-            }
-
-
-            .profile-name {
-              max-width: none;
-
-              font-size: 14px;
-            }
-
-
-            .logout-box {
-              width: 100%;
-
-              margin: 3px 0;
-
-              font-size: 14px;
-            }
-
+          .navbar-container {
+            padding:
+              9px 12px;
           }
 
+          .project-title {
+            max-width: 73%;
 
-          /* =====================================================
-             SMALL MOBILE
-          ===================================================== */
-
-          @media (max-width: 576px) {
-
-            .project-title {
-              font-size: 16px;
-
-              max-width: 72%;
-            }
-
-
-            .title-ampersand {
-              width: 22px;
-
-              height: 22px;
-
-              font-size: 14px;
-            }
-
-
-            .profile-name {
-              font-size: 13px;
-            }
-
+            gap: 5px;
           }
+
+          .project-title-main {
+            font-size: 17px;
+          }
+
+          .project-title-sub {
+            font-size: 12px;
+
+            white-space: normal;
+          }
+
+          .title-ampersand {
+            width: 23px;
+
+            height: 23px;
+
+            font-size: 14px;
+          }
+
+          .nav-box,
+          .logout-box {
+            font-size: 14px;
+          }
+
+          .profile-name {
+            font-size: 14px;
+          }
+        }
 
         `}
       </style>
+
     </nav>
   );
 }
