@@ -122,8 +122,8 @@ function Auth() {
 
             <p className="auth-description">
               {isLogin
-                ? "Login to access your Smart Mess & SpaceFit account"
-                : "Join Smart Student Mess & SpaceFit"}
+                ? "Login to access your account"
+                : "Join Smart Student Mess & SpaceFit Room Allocation System"}
             </p>
 
           </div>
@@ -449,7 +449,7 @@ function Auth() {
 
 
           <div className="auth-brand">
-            Smart Student Mess & SpaceFit
+            Smart Student Mess & SpaceFit Room Allocation System
           </div>
 
         </div>
