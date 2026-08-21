@@ -59,15 +59,26 @@ const createMealMenu = async (req, res) => {
       });
     }
 
+    // Cutoff time must be in the future
     if (new Date(cutoffTime) <= new Date()) {
       return res.status(400).json({
         message: "Cutoff time must be in the future",
       });
     }
 
+    // Check-in start MUST be after cutoff time
+    if (new Date(checkInStart) <= new Date(cutoffTime)) {
+      return res.status(400).json({
+        message:
+          "Meal check-in start time must be after the meal cutoff time.",
+      });
+    }
+
+    // Check-in end MUST be after check-in start
     if (new Date(checkInEnd) <= new Date(checkInStart)) {
       return res.status(400).json({
-        message: "Check-in end time must be after the check-in start time",
+        message:
+          "Meal check-in end time must be after the meal check-in start time.",
       });
     }
 
@@ -137,7 +148,10 @@ const updateMealMenu = async (req, res) => {
 
     const validMealTypes = ["breakfast", "lunch", "dinner"];
 
-    if (mealType !== undefined && !validMealTypes.includes(mealType)) {
+    if (
+      mealType !== undefined &&
+      !validMealTypes.includes(mealType)
+    ) {
       return res.status(400).json({
         message: "Meal type must be breakfast, lunch or dinner",
       });
@@ -149,17 +163,31 @@ const updateMealMenu = async (req, res) => {
       });
     }
 
+    const nextCutoffTime = cutoffTime
+      ? new Date(cutoffTime)
+      : new Date(mealMenu.cutoffTime);
+
     const nextCheckInStart = checkInStart
       ? new Date(checkInStart)
-      : mealMenu.checkInStart;
+      : new Date(mealMenu.checkInStart);
 
     const nextCheckInEnd = checkInEnd
       ? new Date(checkInEnd)
-      : mealMenu.checkInEnd;
+      : new Date(mealMenu.checkInEnd);
 
+    // Check-in start MUST be after cutoff time
+    if (nextCheckInStart <= nextCutoffTime) {
+      return res.status(400).json({
+        message:
+          "Meal check-in start time must be after the meal cutoff time.",
+      });
+    }
+
+    // Check-in end MUST be after check-in start
     if (nextCheckInEnd <= nextCheckInStart) {
       return res.status(400).json({
-        message: "Check-in end time must be after the check-in start time",
+        message:
+          "Meal check-in end time must be after the meal check-in start time.",
       });
     }
 
@@ -167,10 +195,14 @@ const updateMealMenu = async (req, res) => {
     if (mealType !== undefined) mealMenu.mealType = mealType;
     if (menu !== undefined) mealMenu.menu = menu;
     if (price !== undefined) mealMenu.price = price;
-    if (dietaryNotes !== undefined) mealMenu.dietaryNotes = dietaryNotes;
-    if (cutoffTime !== undefined) mealMenu.cutoffTime = cutoffTime;
-    if (checkInStart !== undefined) mealMenu.checkInStart = checkInStart;
-    if (checkInEnd !== undefined) mealMenu.checkInEnd = checkInEnd;
+    if (dietaryNotes !== undefined)
+      mealMenu.dietaryNotes = dietaryNotes;
+    if (cutoffTime !== undefined)
+      mealMenu.cutoffTime = cutoffTime;
+    if (checkInStart !== undefined)
+      mealMenu.checkInStart = checkInStart;
+    if (checkInEnd !== undefined)
+      mealMenu.checkInEnd = checkInEnd;
 
     await mealMenu.save();
 
