@@ -8,8 +8,7 @@ const Room = require("../models/Room");
 // CONSTANTS
 // ===========================================================
 
-// Matched waitlist student gets WAITLIST_CLAIM_HOURS hours to
-// request the bed before their priority expires.
+// Matched waitlist student gets 5 hours to request the bed.
 const WAITLIST_CLAIM_HOURS = 5;
 
 const WAITLIST_CLAIM_MS =
@@ -18,8 +17,7 @@ const WAITLIST_CLAIM_MS =
     60 *
     1000;
 
-// Once a student requests a bed,
-// the bed is held for the manager for 24 hours.
+// Once a student requests a bed, the bed is held for 24 hours.
 const RESERVATION_HOLD_HOURS = 24;
 
 const RESERVATION_HOLD_MS =
@@ -27,6 +25,7 @@ const RESERVATION_HOLD_MS =
     60 *
     60 *
     1000;
+
 
 // ===========================================================
 // HELPER - VALIDATE OBJECT ID
@@ -36,13 +35,9 @@ const isValidId = (id) => {
     return mongoose.Types.ObjectId.isValid(id);
 };
 
+
 // ===========================================================
 // HELPER - VALIDATE APPLICANT DETAILS
-//
-// Every new reservation request must include this info so the
-// manager has enough context to review it. Kept in one place
-// so the required-field list can't drift between the route
-// validation and the schema's own `required: true` fields.
 // ===========================================================
 
 const REQUIRED_APPLICANT_FIELDS = [
@@ -60,40 +55,62 @@ const REQUIRED_APPLICANT_FIELDS = [
 ];
 
 const VALID_BLOOD_GROUPS = [
-    "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-",
+    "A+",
+    "A-",
+    "B+",
+    "B-",
+    "AB+",
+    "AB-",
+    "O+",
+    "O-",
 ];
 
 const validateApplicantDetails = (applicantDetails) => {
-    if (!applicantDetails || typeof applicantDetails !== "object") {
+    if (
+        !applicantDetails ||
+        typeof applicantDetails !== "object"
+    ) {
         return "Applicant details are required.";
     }
 
     for (const field of REQUIRED_APPLICANT_FIELDS) {
         const value = applicantDetails[field];
 
-        if (typeof value !== "string" || !value.trim()) {
+        if (
+            typeof value !== "string" ||
+            !value.trim()
+        ) {
             return `Applicant details are incomplete: "${field}" is required.`;
         }
     }
 
-    if (!VALID_BLOOD_GROUPS.includes(applicantDetails.bloodGroup)) {
+    if (
+        !VALID_BLOOD_GROUPS.includes(
+            applicantDetails.bloodGroup
+        )
+    ) {
         return "Applicant details contain an invalid blood group.";
     }
 
     return null;
 };
 
-// Trims every field down to just the values we accept, so
-// nothing extra in req.body.applicantDetails gets persisted.
+
+// ===========================================================
+// HELPER - SANITIZE APPLICANT DETAILS
+// ===========================================================
+
 const sanitizeApplicantDetails = (applicantDetails) => {
     const sanitized = {};
 
     for (const field of REQUIRED_APPLICANT_FIELDS) {
-        sanitized[field] = String(applicantDetails[field]).trim();
+        sanitized[field] =
+            String(applicantDetails[field]).trim();
     }
 
     return sanitized;
 };
+
 
 // ===========================================================
 // HELPER - CHECK ACTIVE REQUEST
@@ -104,7 +121,10 @@ const hasActiveRequest = async (studentId) => {
         await Reservation.findOne({
             student: studentId,
             status: {
-                $in: ["pending", "approved"],
+                $in: [
+                    "pending",
+                    "approved",
+                ],
             },
         });
 
@@ -116,12 +136,16 @@ const hasActiveRequest = async (studentId) => {
         await Waitlist.findOne({
             student: studentId,
             status: {
-                $in: ["waiting", "matched"],
+                $in: [
+                    "waiting",
+                    "matched",
+                ],
             },
         });
 
     return !!activeWaitlist;
 };
+
 
 // ===========================================================
 // FIND FIRST WAITING STUDENT
@@ -141,12 +165,9 @@ const getFirstWaitingEntry = async (
     });
 };
 
+
 // ===========================================================
 // MATCH NEXT WAITLIST STUDENT
-//
-// waiting -> matched
-//
-// Only one student can be matched for a bed.
 // ===========================================================
 
 const notifyNextWaitlistStudent = async (
@@ -172,7 +193,6 @@ const notifyNextWaitlistStudent = async (
             return null;
         }
 
-        // Bed must actually be available.
         if (
             bed.occupied ||
             bed.onHold
@@ -180,8 +200,6 @@ const notifyNextWaitlistStudent = async (
             return null;
         }
 
-        // Do not match another student if someone
-        // is already matched.
         const existingMatched =
             await Waitlist.findOne({
                 room: roomId,
@@ -193,7 +211,6 @@ const notifyNextWaitlistStudent = async (
             return existingMatched;
         }
 
-        // Find oldest waiting student.
         const nextEntry =
             await getFirstWaitingEntry(
                 roomId,
@@ -241,14 +258,9 @@ const notifyNextWaitlistStudent = async (
     }
 };
 
+
 // ===========================================================
 // MATCH WAITLIST
-//
-// Specific bed:
-//     matchWaitlist(roomId, bedNumber)
-//
-// All available beds:
-//     matchWaitlist(roomId)
 // ===========================================================
 
 const matchWaitlist = async (
@@ -297,215 +309,188 @@ const matchWaitlist = async (
     }
 };
 
+
 // ===========================================================
 // EXPIRE WAITLIST MATCHES
-//
-// matched -> expired
-// next waiting student -> matched
 // ===========================================================
 
-const expireWaitlistMatches =
-    async () => {
+const expireWaitlistMatches = async () => {
+    try {
+        const now = new Date();
 
-        try {
-            const now = new Date();
+        const expiredEntries =
+            await Waitlist.find({
+                status: "matched",
+                matchedUntil: {
+                    $lte: now,
+                },
+            });
 
-            const expiredEntries =
-                await Waitlist.find({
-                    status: "matched",
-                    matchedUntil: {
-                        $lte: now,
+        let expiredCount = 0;
+
+        for (
+            const entry of expiredEntries
+        ) {
+            const expired =
+                await Waitlist.findOneAndUpdate(
+                    {
+                        _id: entry._id,
+                        status: "matched",
+                        matchedUntil: {
+                            $lte: now,
+                        },
                     },
-                });
-
-            let expiredCount = 0;
-
-            for (
-                const entry of expiredEntries
-            ) {
-                const expired =
-                    await Waitlist.findOneAndUpdate(
-                        {
-                            _id: entry._id,
-                            status: "matched",
-                            matchedUntil: {
-                                $lte: now,
-                            },
+                    {
+                        $set: {
+                            status: "expired",
+                            notified: false,
+                            notificationMessage:
+                                `Your ${WAITLIST_CLAIM_HOURS}-hour priority period expired. ` +
+                                "The next waitlist student will now receive priority.",
                         },
-                        {
-                            $set: {
-                                status: "expired",
-                                notified: false,
-                                notificationMessage:
-                                    `Your ${WAITLIST_CLAIM_HOURS}-hour priority period expired. ` +
-                                    "The next waitlist student will now receive priority.",
-                            },
-                        },
-                        {
-                            new: true,
-                        }
-                    );
-
-                if (!expired) {
-                    continue;
-                }
-
-                expiredCount++;
-
-                console.log(
-                    `[Waitlist] Student ${entry.student} ` +
-                    `expired for room ${entry.room}, ` +
-                    `bed ${entry.bedNumber}.`
+                    },
+                    {
+                        new: true,
+                    }
                 );
 
-                await notifyNextWaitlistStudent(
-                    entry.room,
-                    entry.bedNumber
-                );
+            if (!expired) {
+                continue;
             }
 
-            return expiredCount;
+            expiredCount++;
 
-        } catch (error) {
-            console.error(
-                "[Waitlist] expireWaitlistMatches:",
-                error.message
+            console.log(
+                `[Waitlist] Student ${entry.student} ` +
+                `expired for room ${entry.room}, ` +
+                `bed ${entry.bedNumber}.`
             );
 
-            return 0;
+            await notifyNextWaitlistStudent(
+                entry.room,
+                entry.bedNumber
+            );
         }
-    };
+
+        return expiredCount;
+
+    } catch (error) {
+        console.error(
+            "[Waitlist] expireWaitlistMatches:",
+            error.message
+        );
+
+        return 0;
+    }
+};
+
 
 // ===========================================================
 // EXPIRE PENDING RESERVATION HOLDS
-//
-// pending -> expired
-// bed released
-// next waitlist student -> matched
 // ===========================================================
 
-const expireStaleHolds =
-    async () => {
+const expireStaleHolds = async () => {
+    try {
+        const now = new Date();
 
-        try {
-            const now = new Date();
+        const staleReservations =
+            await Reservation.find({
+                status: "pending",
+                holdExpiresAt: {
+                    $lte: now,
+                },
+            });
 
-            const staleReservations =
-                await Reservation.find({
-                    status: "pending",
-                    holdExpiresAt: {
-                        $lte: now,
-                    },
-                });
+        let expiredCount = 0;
 
-            let expiredCount = 0;
+        for (
+            const reservation
+            of staleReservations
+        ) {
+            // Release bed
+            const releasedRoom =
+                await Room.findOneAndUpdate(
+                    {
+                        _id: reservation.room,
+                        beds: {
+                            $elemMatch: {
+                                bedNumber:
+                                    reservation.bedNumber,
 
-            for (
-                const reservation
-                of staleReservations
-            ) {
-                // Release bed atomically.
-                const releasedRoom =
-                    await Room.findOneAndUpdate(
-                        {
-                            _id: reservation.room,
-                            beds: {
-                                $elemMatch: {
-                                    bedNumber:
-                                        reservation.bedNumber,
+                                onHold: true,
 
-                                    onHold: true,
+                                occupied: false,
 
-                                    occupied: false,
-
-                                    isArchived: {
-                                        $ne: true,
-                                    },
+                                isArchived: {
+                                    $ne: true,
                                 },
                             },
                         },
-                        {
-                            $set: {
-                                "beds.$.onHold": false,
-                            },
+                    },
+                    {
+                        $set: {
+                            "beds.$.onHold": false,
                         },
-                        {
-                            new: true,
-                        }
-                    );
+                    },
+                    {
+                        new: true,
+                    }
+                );
 
-                // Expire reservation atomically.
-                const expiredReservation =
-                    await Reservation.findOneAndUpdate(
-                        {
-                            _id: reservation._id,
-                            status: "pending",
+            // Expire reservation atomically
+            const expiredReservation =
+                await Reservation.findOneAndUpdate(
+                    {
+                        _id: reservation._id,
+                        status: "pending",
+                    },
+                    {
+                        $set: {
+                            status: "expired",
                         },
-                        {
-                            $set: {
-                                status: "expired",
-                            },
-                        },
-                        {
-                            new: true,
-                        }
-                    );
+                    },
+                    {
+                        new: true,
+                    }
+                );
 
-                if (!expiredReservation) {
-                    continue;
-                }
-
-                expiredCount++;
-
-                // Match next student.
-                if (releasedRoom) {
-                    await matchWaitlist(
-                        reservation.room,
-                        reservation.bedNumber
-                    );
-                }
+            if (!expiredReservation) {
+                continue;
             }
 
-            return expiredCount;
+            expiredCount++;
 
-        } catch (error) {
-            console.error(
-                "[Reservation] expireStaleHolds:",
-                error.message
-            );
-
-            return 0;
+            // Match next waitlist student
+            if (releasedRoom) {
+                await matchWaitlist(
+                    reservation.room,
+                    reservation.bedNumber
+                );
+            }
         }
-    };
+
+        return expiredCount;
+
+    } catch (error) {
+        console.error(
+            "[Reservation] expireStaleHolds:",
+            error.message
+        );
+
+        return 0;
+    }
+};
+
 
 // ===========================================================
 // CLAIM BED FOR MATCHED WAITLIST STUDENT
-//
-// Single source of truth for the "matched student requests
-// their held bed" flow. Called from two places:
-//   1. waitlist.controller.js -> claimMatchedBed()
-//      (POST /waitlist/:id/claim)
-//   2. reservation.controller.js -> requestReservation()
-//      when the requesting student is the currently matched
-//      student for that bed (POST /reservations/request)
-//
-// Both call sites delegate here rather than duplicating the
-// atomic hold + reservation-create + rollback logic, so a
-// future fix only needs to be made once.
-//
-// matched
-//    ↓
-// student clicks Request This Bed
-//    ↓
-// pending reservation
-//    ↓
-// bed onHold
-//    ↓
-// waitlist entry -> allocated
 // ===========================================================
 
 const claimBedForMatchedStudent =
-    async (matchedEntry, applicantDetails) => {
+    async (
+        matchedEntry,
+        applicantDetails
+    ) => {
 
         const studentId =
             matchedEntry.student;
@@ -515,6 +500,7 @@ const claimBedForMatchedStudent =
 
         const bedNumber =
             matchedEntry.bedNumber;
+
 
         // ---------------------------------------------------
         // CHECK ACTIVE RESERVATION
@@ -542,6 +528,7 @@ const claimBedForMatchedStudent =
             };
         }
 
+
         // ---------------------------------------------------
         // FIND ROOM
         // ---------------------------------------------------
@@ -558,6 +545,7 @@ const claimBedForMatchedStudent =
                 },
             };
         }
+
 
         // ---------------------------------------------------
         // FIND BED
@@ -580,6 +568,7 @@ const claimBedForMatchedStudent =
             };
         }
 
+
         // ---------------------------------------------------
         // BED MUST BE AVAILABLE
         // ---------------------------------------------------
@@ -599,6 +588,7 @@ const claimBedForMatchedStudent =
             };
         }
 
+
         // ---------------------------------------------------
         // ATOMIC BED HOLD
         // ---------------------------------------------------
@@ -607,11 +597,15 @@ const claimBedForMatchedStudent =
             await Room.findOneAndUpdate(
                 {
                     _id: roomId,
+
                     beds: {
                         $elemMatch: {
                             bedNumber,
+
                             occupied: false,
+
                             onHold: false,
+
                             isArchived: {
                                 $ne: true,
                             },
@@ -639,10 +633,9 @@ const claimBedForMatchedStudent =
             };
         }
 
+
         // ---------------------------------------------------
         // CREATE PENDING RESERVATION
-        //
-        // This is what sends the request to the manager.
         // ---------------------------------------------------
 
         let reservation;
@@ -651,10 +644,15 @@ const claimBedForMatchedStudent =
             reservation =
                 await Reservation.create({
                     student: studentId,
+
                     room: roomId,
+
                     bedNumber,
+
                     applicantDetails,
+
                     status: "pending",
+
                     holdExpiresAt:
                         new Date(
                             Date.now() +
@@ -664,16 +662,18 @@ const claimBedForMatchedStudent =
 
         } catch (reservationError) {
 
-            // Roll back bed hold.
+            // Roll back bed hold
             await Room.updateOne(
                 {
                     _id: roomId,
+
                     "beds.bedNumber":
                         bedNumber,
                 },
                 {
                     $set: {
-                        "beds.$.onHold": false,
+                        "beds.$.onHold":
+                            false,
                     },
                 }
             );
@@ -681,27 +681,25 @@ const claimBedForMatchedStudent =
             throw reservationError;
         }
 
+
         // ---------------------------------------------------
         // WAITLIST MATCH USED
-        //
-        // allocated here means:
-        // "waitlist priority was used and reservation
-        // request was sent to manager"
-        //
-        // Status must stay "allocated" — it's the only
-        // status the frontend and findMatchingStudents()
-        // know how to handle for a completed claim.
         // ---------------------------------------------------
 
-        matchedEntry.status = "allocated";
-        matchedEntry.notified = true;
+        matchedEntry.status =
+            "allocated";
+
+        matchedEntry.notified =
+            true;
 
         matchedEntry.notificationMessage =
             "You requested the bed successfully. Your reservation request has been sent to the manager.";
 
-        matchedEntry.matchedUntil = null;
+        matchedEntry.matchedUntil =
+            null;
 
         await matchedEntry.save();
+
 
         console.log(
             `[Waitlist] Student ${studentId} ` +
@@ -709,12 +707,17 @@ const claimBedForMatchedStudent =
             `bed ${bedNumber}. Reservation is pending.`
         );
 
+
         return {
             status: 201,
+
             body: {
                 success: true,
+
                 waitlisted: false,
+
                 fromWaitlist: true,
+
                 requested: true,
 
                 message:
@@ -725,507 +728,570 @@ const claimBedForMatchedStudent =
         };
     };
 
+
 // ===========================================================
-// CANCEL RESERVATION WHEN A BED IS MANUALLY FREED
-//
-// Called from room.controller.js (updateBed / archiveBed)
-// whenever the manager directly flips a bed from
-// occupied: true -> false (or archives an occupied bed)
-// OUTSIDE the normal student-initiated cancelReservation()
-// flow.
-//
-// Without this, the bed correctly becomes available/on-hold
-// again (room.controller.js already handles that via
-// matchWaitlist()), but the student's Reservation record is
-// left stuck at status: "approved" forever, since nothing
-// else ever revisits it. getMyReservations() would then show
-// a permanently "approved" reservation for a bed the student
-// no longer actually has.
-//
-// Mirrors the "APPROVED" branch of cancelReservation(): finds
-// the approved reservation for this room + bed, marks it
-// cancelled, and lets the next waitlist student through.
-//
-// IMPORTANT: this function does NOT touch bed.occupied /
-// bed.onHold itself. The caller (room.controller.js) is
-// responsible for the bed state change; this only reconciles
-// the Reservation record so the two don't go out of sync.
-// Only reservations with status "approved" are matched here,
-// since "approved" is the only status that corresponds to an
-// occupied bed (see approveReservation() below) — a "pending"
-// reservation corresponds to onHold instead, and that case is
-// already handled separately by expireStaleHolds() and the
-// student's own cancelReservation().
+// CANCEL RESERVATION WHEN BED IS MANUALLY FREED
 // ===========================================================
 
-const cancelReservationForFreedBed = async (
-    roomId,
-    bedNumber
-) => {
-    try {
-        const reservation =
-            await Reservation.findOne({
-                room: roomId,
-                bedNumber,
-                status: "approved",
-            });
+const cancelReservationForFreedBed =
+    async (
+        roomId,
+        bedNumber
+    ) => {
 
-        if (!reservation) {
+        try {
+            const reservation =
+                await Reservation.findOne({
+                    room: roomId,
+                    bedNumber,
+                    status: "approved",
+                });
+
+            if (!reservation) {
+                return null;
+            }
+
+            reservation.status =
+                "cancelled";
+
+            reservation.rejectionReason =
+                "Cancelled automatically: bed was marked available by the manager.";
+
+            await reservation.save();
+
+            console.log(
+                `[Reservation] Auto-cancelled reservation ${reservation._id} ` +
+                `for room ${roomId}, bed ${bedNumber} ` +
+                `(manager freed the bed).`
+            );
+
+            return reservation;
+
+        } catch (error) {
+
+            console.error(
+                "[Reservation] cancelReservationForFreedBed:",
+                error.message
+            );
+
             return null;
         }
+    };
 
-        reservation.status = "cancelled";
-
-        reservation.rejectionReason =
-            "Cancelled automatically: bed was marked available by the manager.";
-
-        await reservation.save();
-
-        console.log(
-            `[Reservation] Auto-cancelled reservation ${reservation._id} ` +
-            `for room ${roomId}, bed ${bedNumber} ` +
-            `(manager freed the bed).`
-        );
-
-        return reservation;
-
-    } catch (error) {
-        console.error(
-            "[Reservation] cancelReservationForFreedBed:",
-            error.message
-        );
-
-        return null;
-    }
-};
 
 // ===========================================================
 // STUDENT - REQUEST BED
 // ===========================================================
+// IMPORTANT:
+// Function declaration is used intentionally here.
+// This prevents the "requestReservation is not defined"
+// error when exporting the controller.
+// ===========================================================
 
-const requestReservation =
-    async (req, res) => {
+async function requestReservation(req, res) {
 
-        try {
+    try {
 
-            if (
-                req.user.role !== "student"
-            ) {
-                return res.status(403).json({
-                    success: false,
-                    message:
-                        "Only students can request a bed.",
-                });
-            }
+        // ---------------------------------------------------
+        // ROLE CHECK
+        // ---------------------------------------------------
 
-            const {
-                roomId,
-                bedNumber,
-            } = req.body;
+        if (
+            req.user.role !== "student"
+        ) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Only students can request a bed.",
+            });
+        }
 
-            if (
-                !roomId ||
-                !isValidId(roomId)
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "A valid room is required.",
-                });
-            }
 
-            if (!bedNumber) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "A specific bed must be selected.",
-                });
-            }
+        // ---------------------------------------------------
+        // REQUEST DATA
+        // ---------------------------------------------------
 
-            const applicantDetailsError =
-                validateApplicantDetails(
-                    req.body.applicantDetails
-                );
+        const {
+            roomId,
+            bedNumber,
+        } = req.body;
 
-            if (applicantDetailsError) {
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        applicantDetailsError,
-                });
-            }
 
-            const applicantDetails =
-                sanitizeApplicantDetails(
-                    req.body.applicantDetails
-                );
+        // ---------------------------------------------------
+        // VALIDATE ROOM
+        // ---------------------------------------------------
 
-            // Process expired states.
-            await expireStaleHolds();
-            await expireWaitlistMatches();
+        if (
+            !roomId ||
+            !isValidId(roomId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "A valid room is required.",
+            });
+        }
 
-            const room =
-                await Room.findById(roomId);
 
-            if (!room) {
-                return res.status(404).json({
-                    success: false,
-                    message:
-                        "Room not found.",
-                });
-            }
+        // ---------------------------------------------------
+        // VALIDATE BED
+        // ---------------------------------------------------
 
-            const bed =
-                room.beds.find(
-                    (b) =>
-                        b.bedNumber === bedNumber &&
-                        !b.isArchived
-                );
+        if (!bedNumber) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "A specific bed must be selected.",
+            });
+        }
 
-            if (!bed) {
-                return res.status(404).json({
-                    success: false,
-                    message:
-                        "Bed not found.",
-                });
-            }
 
-            // ------------------------------------------------
-            // PRIORITY CHECK
-            // ------------------------------------------------
+        // ---------------------------------------------------
+        // VALIDATE APPLICANT DETAILS
+        // ---------------------------------------------------
 
-            const priorityEntry = await Waitlist.findOne({
+        const applicantDetailsError =
+            validateApplicantDetails(
+                req.body.applicantDetails
+            );
+
+        if (applicantDetailsError) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    applicantDetailsError,
+            });
+        }
+
+
+        const applicantDetails =
+            sanitizeApplicantDetails(
+                req.body.applicantDetails
+            );
+
+
+        // ---------------------------------------------------
+        // PROCESS EXPIRED STATES
+        // ---------------------------------------------------
+
+        await expireStaleHolds();
+
+        await expireWaitlistMatches();
+
+
+        // ---------------------------------------------------
+        // FIND ROOM
+        // ---------------------------------------------------
+
+        const room =
+            await Room.findById(roomId);
+
+        if (!room) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Room not found.",
+            });
+        }
+
+
+        // ---------------------------------------------------
+        // FIND BED
+        // ---------------------------------------------------
+
+        const bed =
+            room.beds.find(
+                (b) =>
+                    b.bedNumber === bedNumber &&
+                    !b.isArchived
+            );
+
+        if (!bed) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Bed not found.",
+            });
+        }
+
+
+        // ---------------------------------------------------
+        // PRIORITY CHECK
+        // ---------------------------------------------------
+
+        const priorityEntry =
+            await Waitlist.findOne({
                 room: room._id,
+
                 bedNumber,
+
                 status: "matched",
+
                 matchedUntil: {
                     $gt: new Date(),
                 },
             });
 
-            // If another student has priority, block this request
-            if (
-                priorityEntry &&
-                priorityEntry.student.toString() !==
-                    req.user._id.toString()
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    waitlistPriority: true,
-                    message:
-                        "This bed is currently reserved for the matched waitlist student.",
-                });
-            }
 
-            // If current student is the matched student,
-            // allow the request to continue.
-            const isCurrentMatchedStudent =
-                !!priorityEntry;
+        // Another student has priority
+        if (
+            priorityEntry &&
+            priorityEntry.student.toString() !==
+            req.user._id.toString()
+        ) {
+            return res.status(400).json({
+                success: false,
 
-            // ------------------------------------------------
-            // ACTIVE RESERVATION
-            // ------------------------------------------------
+                waitlistPriority: true,
 
-            const activeReservation =
-                await Reservation.findOne({
+                message:
+                    "This bed is currently reserved for the matched waitlist student.",
+            });
+        }
+
+
+        // Current student is matched
+        const isCurrentMatchedStudent =
+            !!priorityEntry;
+
+
+        // ---------------------------------------------------
+        // ACTIVE RESERVATION
+        // ---------------------------------------------------
+
+        const activeReservation =
+            await Reservation.findOne({
+                student:
+                    req.user._id,
+
+                status: {
+                    $in: [
+                        "pending",
+                        "approved",
+                    ],
+                },
+            });
+
+        if (activeReservation) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "You already have an active reservation.",
+            });
+        }
+
+
+        // ---------------------------------------------------
+        // ACTIVE WAITLIST
+        // ---------------------------------------------------
+
+        if (
+            !isCurrentMatchedStudent
+        ) {
+
+            const activeWaitlist =
+                await Waitlist.findOne({
                     student:
                         req.user._id,
 
                     status: {
                         $in: [
-                            "pending",
-                            "approved",
+                            "waiting",
+                            "matched",
                         ],
                     },
                 });
 
-            if (activeReservation) {
+            if (activeWaitlist) {
                 return res.status(400).json({
                     success: false,
                     message:
-                        "You already have an active reservation.",
+                        "You already have an active waitlist request.",
                 });
             }
+        }
 
-            // ------------------------------------------------
-            // ACTIVE WAITLIST
-            //
-            // Matched student is allowed.
-            // ------------------------------------------------
 
+        // ---------------------------------------------------
+        // BED OCCUPIED / ON HOLD
+        // ---------------------------------------------------
+
+        if (
+            bed.occupied ||
+            bed.onHold
+        ) {
+
+            // Matched student cannot claim unavailable bed
             if (
-                !isCurrentMatchedStudent
+                isCurrentMatchedStudent
             ) {
-                const activeWaitlist =
-                    await Waitlist.findOne({
-                        student:
-                            req.user._id,
-
-                        status: {
-                            $in: [
-                                "waiting",
-                                "matched",
-                            ],
-                        },
-                    });
-
-                if (activeWaitlist) {
-                    return res.status(400).json({
-                        success: false,
-                        message:
-                            "You already have an active waitlist request.",
-                    });
-                }
-            }
-
-            // ------------------------------------------------
-            // BED OCCUPIED / ON HOLD
-            // ------------------------------------------------
-
-            if (
-                bed.occupied ||
-                bed.onHold
-            ) {
-
-                if (
-                    isCurrentMatchedStudent
-                ) {
-                    return res.status(409).json({
-                        success: false,
-                        waitlistPriority: true,
-                        message:
-                            "This bed is currently unavailable. Please try again when it becomes available.",
-                    });
-                }
-
-                // Normal student joins waitlist.
-                const existing =
-                    await Waitlist.findOne({
-                        student:
-                            req.user._id,
-
-                        room:
-                            room._id,
-
-                        bedNumber,
-
-                        status: {
-                            $in: [
-                                "waiting",
-                                "matched",
-                            ],
-                        },
-                    });
-
-                if (existing) {
-                    return res.status(400).json({
-                        success: false,
-                        message:
-                            "You are already on the waitlist for this bed.",
-                    });
-                }
-
-                const waitlistEntry =
-                    await Waitlist.create({
-                        student:
-                            req.user._id,
-
-                        room:
-                            room._id,
-
-                        bedNumber,
-
-                        budget:
-                            req.user.budget ||
-                            room.rent,
-
-                        roommatePreference:
-                            req.user.roommatePreference ||
-                            "",
-
-                        spacePreference:
-                            req.user.spacePreference ||
-                            null,
-
-                        status:
-                            "waiting",
-
-                        notified:
-                            false,
-
-                        notificationMessage:
-                            "",
-                    });
-
-                // Calculate immediate rank.
-                const position =
-                    await Waitlist.countDocuments({
-                        room:
-                            room._id,
-
-                        bedNumber,
-
-                        status: {
-                            $in: [
-                                "waiting",
-                                "matched",
-                            ],
-                        },
-
-                        createdAt: {
-                            $lte:
-                                waitlistEntry.createdAt,
-                        },
-                    });
-
-                return res.status(201).json({
-                    success: true,
-                    waitlisted: true,
-
-                    message:
-                        bed.occupied
-                            ? "This bed is occupied. You have been added to the waitlist."
-                            : "This bed is currently on hold. You have been added to the waitlist.",
-
-                    waitlist: {
-                        ...waitlistEntry.toObject(),
-                        position,
-                    },
-                });
-            }
-
-            // ------------------------------------------------
-            // BED AVAILABLE — CLAIM IT
-            //
-            // Matched student: delegate entirely to
-            // claimBedForMatchedStudent() so there is exactly
-            // one implementation of the atomic hold + create +
-            // rollback + "allocated" flow.
-            // ------------------------------------------------
-
-            if (isCurrentMatchedStudent) {
-                const result =
-                    await claimBedForMatchedStudent(
-                        priorityEntry,
-                        applicantDetails
-                    );
-
-                return res
-                    .status(result.status)
-                    .json(result.body);
-            }
-
-            // ------------------------------------------------
-            // Normal student, no waitlist entry to update.
-            // ------------------------------------------------
-
-            const claimedRoom =
-                await Room.findOneAndUpdate(
-                    {
-                        _id: room._id,
-
-                        beds: {
-                            $elemMatch: {
-                                bedNumber,
-
-                                occupied: false,
-
-                                onHold: false,
-
-                                isArchived: {
-                                    $ne: true,
-                                },
-                            },
-                        },
-                    },
-                    {
-                        $set: {
-                            "beds.$.onHold":
-                                true,
-                        },
-                    },
-                    {
-                        new: true,
-                    }
-                );
-
-            if (!claimedRoom) {
                 return res.status(409).json({
                     success: false,
+
+                    waitlistPriority: true,
+
                     message:
-                        "Another student just requested this bed. Please try again.",
+                        "This bed is currently unavailable. Please try again when it becomes available.",
                 });
             }
 
-            let reservation;
 
-            try {
-                reservation =
-                    await Reservation.create({
-                        student:
-                            req.user._id,
+            // ------------------------------------------------
+            // NORMAL STUDENT JOINS WAITLIST
+            // ------------------------------------------------
 
-                        room:
-                            room._id,
+            const existing =
+                await Waitlist.findOne({
+                    student:
+                        req.user._id,
 
-                        bedNumber,
+                    room:
+                        room._id,
 
-                        applicantDetails,
+                    bedNumber,
 
-                        status:
-                            "pending",
-
-                        holdExpiresAt:
-                            new Date(
-                                Date.now() +
-                                RESERVATION_HOLD_MS
-                            ),
-                    });
-
-            } catch (reservationError) {
-
-                await Room.updateOne(
-                    {
-                        _id: room._id,
-                        "beds.bedNumber":
-                            bedNumber,
+                    status: {
+                        $in: [
+                            "waiting",
+                            "matched",
+                        ],
                     },
-                    {
-                        $set: {
-                            "beds.$.onHold":
-                                false,
-                        },
-                    }
-                );
+                });
 
-                throw reservationError;
+            if (existing) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "You are already on the waitlist for this bed.",
+                });
             }
+
+
+            const waitlistEntry =
+                await Waitlist.create({
+                    student:
+                        req.user._id,
+
+                    room:
+                        room._id,
+
+                    bedNumber,
+
+                    budget:
+                        req.user.budget ||
+                        room.rent,
+
+                    roommatePreference:
+                        req.user.roommatePreference ||
+                        "",
+
+                    spacePreference:
+                        req.user.spacePreference ||
+                        null,
+
+                    status:
+                        "waiting",
+
+                    notified:
+                        false,
+
+                    notificationMessage:
+                        "",
+                });
+
+
+            // Calculate position
+            const position =
+                await Waitlist.countDocuments({
+                    room:
+                        room._id,
+
+                    bedNumber,
+
+                    status: {
+                        $in: [
+                            "waiting",
+                            "matched",
+                        ],
+                    },
+
+                    createdAt: {
+                        $lte:
+                            waitlistEntry.createdAt,
+                    },
+                });
+
 
             return res.status(201).json({
                 success: true,
 
-                waitlisted: false,
-                fromWaitlist: false,
+                waitlisted: true,
 
-                message: "Reservation request sent to manager.",
-
-                reservation,
-            });
-
-        } catch (error) {
-
-            console.error(
-                "[Reservation] requestReservation:",
-                error
-            );
-
-            return res.status(500).json({
-                success: false,
                 message:
-                    error.message,
+                    bed.occupied
+                        ? "This bed is occupied. You have been added to the waitlist."
+                        : "This bed is currently on hold. You have been added to the waitlist.",
+
+                waitlist: {
+                    ...waitlistEntry.toObject(),
+
+                    position,
+                },
             });
         }
-    };
+
+
+        // ---------------------------------------------------
+        // BED AVAILABLE - MATCHED STUDENT
+        // ---------------------------------------------------
+
+        if (
+            isCurrentMatchedStudent
+        ) {
+
+            const result =
+                await claimBedForMatchedStudent(
+                    priorityEntry,
+                    applicantDetails
+                );
+
+            return res
+                .status(result.status)
+                .json(result.body);
+        }
+
+
+        // ---------------------------------------------------
+        // NORMAL STUDENT - CLAIM AVAILABLE BED
+        // ---------------------------------------------------
+
+        const claimedRoom =
+            await Room.findOneAndUpdate(
+                {
+                    _id: room._id,
+
+                    beds: {
+                        $elemMatch: {
+                            bedNumber,
+
+                            occupied: false,
+
+                            onHold: false,
+
+                            isArchived: {
+                                $ne: true,
+                            },
+                        },
+                    },
+                },
+                {
+                    $set: {
+                        "beds.$.onHold":
+                            true,
+                    },
+                },
+                {
+                    new: true,
+                }
+            );
+
+
+        if (!claimedRoom) {
+            return res.status(409).json({
+                success: false,
+
+                message:
+                    "Another student just requested this bed. Please try again.",
+            });
+        }
+
+
+        // ---------------------------------------------------
+        // CREATE RESERVATION
+        // ---------------------------------------------------
+
+        let reservation;
+
+        try {
+
+            reservation =
+                await Reservation.create({
+                    student:
+                        req.user._id,
+
+                    room:
+                        room._id,
+
+                    bedNumber,
+
+                    applicantDetails,
+
+                    status:
+                        "pending",
+
+                    holdExpiresAt:
+                        new Date(
+                            Date.now() +
+                            RESERVATION_HOLD_MS
+                        ),
+                });
+
+        } catch (reservationError) {
+
+            // Roll back bed hold
+            await Room.updateOne(
+                {
+                    _id:
+                        room._id,
+
+                    "beds.bedNumber":
+                        bedNumber,
+                },
+                {
+                    $set: {
+                        "beds.$.onHold":
+                            false,
+                    },
+                }
+            );
+
+            throw reservationError;
+        }
+
+
+        // ---------------------------------------------------
+        // SUCCESS
+        // ---------------------------------------------------
+
+        return res.status(201).json({
+            success: true,
+
+            waitlisted: false,
+
+            fromWaitlist: false,
+
+            message:
+                "Reservation request sent to manager.",
+
+            reservation,
+        });
+
+    } catch (error) {
+
+        console.error(
+            "[Reservation] requestReservation:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+
+            message:
+                error.message,
+        });
+    }
+}
+
 
 // ===========================================================
 // STUDENT - MY RESERVATIONS
@@ -1235,7 +1301,9 @@ const getMyReservations =
     async (req, res) => {
 
         try {
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
 
             const reservations =
@@ -1254,6 +1322,12 @@ const getMyReservations =
             });
 
         } catch (error) {
+
+            console.error(
+                "[Reservation] getMyReservations:",
+                error
+            );
+
             return res.status(500).json({
                 success: false,
                 message:
@@ -1262,19 +1336,9 @@ const getMyReservations =
         }
     };
 
-// ===========================================================
-// MANAGER - PENDING RESERVATIONS
-// ===========================================================
+
 // ===========================================================
 // MANAGER - ALL RESERVATIONS / RESERVATION HISTORY
-// ===========================================================
-//
-// The endpoint name remains /pending so you do NOT need to
-// change your existing route or frontend service.
-//
-// It now returns ALL reservation records, regardless of status.
-// This allows managers to view applicant details even after
-// approval, rejection, cancellation, or expiration.
 // ===========================================================
 
 const getPendingReservations =
@@ -1292,24 +1356,12 @@ const getPendingReservations =
                 });
             }
 
-            // Run expiry checks first.
-            //
-            // This may change old pending reservations to
-            // "expired", but they will still remain in the
-            // returned reservation history.
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
 
-            // IMPORTANT:
-            //
-            // Do NOT use:
-            //
-            // { status: "pending" }
-            //
-            // because that would hide approved/rejected/
-            // cancelled/expired reservations.
-            //
-            // Empty filter = return all reservations.
+
             const reservations =
                 await Reservation.find({})
                     .populate("student")
@@ -1317,6 +1369,7 @@ const getPendingReservations =
                     .sort({
                         createdAt: -1,
                     });
+
 
             return res.json({
                 success: true,
@@ -1338,6 +1391,7 @@ const getPendingReservations =
         }
     };
 
+
 // ===========================================================
 // MANAGER - APPROVE RESERVATION
 // ===========================================================
@@ -1357,8 +1411,11 @@ const approveReservation =
                 });
             }
 
+
             if (
-                !isValidId(req.params.id)
+                !isValidId(
+                    req.params.id
+                )
             ) {
                 return res.status(400).json({
                     success: false,
@@ -1367,13 +1424,17 @@ const approveReservation =
                 });
             }
 
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
+
 
             const reservation =
                 await Reservation.findById(
                     req.params.id
                 );
+
 
             if (!reservation) {
                 return res.status(404).json({
@@ -1382,6 +1443,7 @@ const approveReservation =
                         "Reservation not found.",
                 });
             }
+
 
             if (
                 reservation.status !== "pending"
@@ -1393,10 +1455,11 @@ const approveReservation =
                 });
             }
 
+
             if (
                 reservation.holdExpiresAt &&
                 reservation.holdExpiresAt <=
-                    new Date()
+                new Date()
             ) {
                 return res.status(400).json({
                     success: false,
@@ -1405,7 +1468,11 @@ const approveReservation =
                 });
             }
 
-            // Occupy bed.
+
+            // ------------------------------------------------
+            // OCCUPY BED
+            // ------------------------------------------------
+
             const updatedRoom =
                 await Room.findOneAndUpdate(
                     {
@@ -1437,13 +1504,15 @@ const approveReservation =
                         },
 
                         $inc: {
-                            currentOccupancy: 1,
+                            currentOccupancy:
+                                1,
                         },
                     },
                     {
                         new: true,
                     }
                 );
+
 
             if (!updatedRoom) {
                 return res.status(400).json({
@@ -1452,6 +1521,7 @@ const approveReservation =
                         "Bed is no longer available to approve.",
                 });
             }
+
 
             reservation.status =
                 "approved";
@@ -1464,7 +1534,8 @@ const approveReservation =
 
             await reservation.save();
 
-            // Remove student's active waitlist.
+
+            // Remove active waitlist
             await Waitlist.deleteMany({
                 student:
                     reservation.student,
@@ -1476,6 +1547,7 @@ const approveReservation =
                     ],
                 },
             });
+
 
             return res.json({
                 success: true,
@@ -1498,6 +1570,7 @@ const approveReservation =
         }
     };
 
+
 // ===========================================================
 // MANAGER - REJECT RESERVATION
 // ===========================================================
@@ -1517,8 +1590,11 @@ const rejectReservation =
                 });
             }
 
+
             if (
-                !isValidId(req.params.id)
+                !isValidId(
+                    req.params.id
+                )
             ) {
                 return res.status(400).json({
                     success: false,
@@ -1527,8 +1603,10 @@ const rejectReservation =
                 });
             }
 
+
             const { reason } =
                 req.body;
+
 
             if (
                 !reason ||
@@ -1541,13 +1619,17 @@ const rejectReservation =
                 });
             }
 
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
+
 
             const reservation =
                 await Reservation.findById(
                     req.params.id
                 );
+
 
             if (!reservation) {
                 return res.status(404).json({
@@ -1556,6 +1638,7 @@ const rejectReservation =
                         "Reservation not found.",
                 });
             }
+
 
             if (
                 reservation.status !== "pending"
@@ -1567,7 +1650,11 @@ const rejectReservation =
                 });
             }
 
-            // Release bed.
+
+            // ------------------------------------------------
+            // RELEASE BED
+            // ------------------------------------------------
+
             await Room.updateOne(
                 {
                     _id:
@@ -1584,6 +1671,7 @@ const rejectReservation =
                 }
             );
 
+
             reservation.status =
                 "rejected";
 
@@ -1592,11 +1680,13 @@ const rejectReservation =
 
             await reservation.save();
 
-            // Next waitlist student gets priority.
+
+            // Next waitlist student
             await matchWaitlist(
                 reservation.room,
                 reservation.bedNumber
             );
+
 
             return res.json({
                 success: true,
@@ -1619,6 +1709,7 @@ const rejectReservation =
         }
     };
 
+
 // ===========================================================
 // STUDENT - CANCEL RESERVATION
 // ===========================================================
@@ -1629,7 +1720,9 @@ const cancelReservation =
         try {
 
             if (
-                !isValidId(req.params.id)
+                !isValidId(
+                    req.params.id
+                )
             ) {
                 return res.status(400).json({
                     success: false,
@@ -1638,13 +1731,17 @@ const cancelReservation =
                 });
             }
 
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
+
 
             const reservation =
                 await Reservation.findById(
                     req.params.id
                 );
+
 
             if (!reservation) {
                 return res.status(404).json({
@@ -1653,6 +1750,7 @@ const cancelReservation =
                         "Reservation not found.",
                 });
             }
+
 
             if (
                 reservation.student.toString() !==
@@ -1664,6 +1762,7 @@ const cancelReservation =
                         "Unauthorized.",
                 });
             }
+
 
             if (
                 [
@@ -1681,12 +1780,14 @@ const cancelReservation =
                 });
             }
 
+
             // ------------------------------------------------
             // APPROVED
             // ------------------------------------------------
 
             if (
-                reservation.status === "approved"
+                reservation.status ===
+                "approved"
             ) {
 
                 const releasedRoom =
@@ -1727,10 +1828,12 @@ const cancelReservation =
                         }
                     );
 
+
                 reservation.status =
                     "cancelled";
 
                 await reservation.save();
+
 
                 if (releasedRoom) {
                     await matchWaitlist(
@@ -1739,6 +1842,7 @@ const cancelReservation =
                     );
                 }
 
+
                 return res.json({
                     success: true,
                     message:
@@ -1746,12 +1850,14 @@ const cancelReservation =
                 });
             }
 
+
             // ------------------------------------------------
             // PENDING
             // ------------------------------------------------
 
             if (
-                reservation.status === "pending"
+                reservation.status ===
+                "pending"
             ) {
 
                 const releasedRoom =
@@ -1786,10 +1892,12 @@ const cancelReservation =
                         }
                     );
 
+
                 reservation.status =
                     "cancelled";
 
                 await reservation.save();
+
 
                 if (releasedRoom) {
                     await matchWaitlist(
@@ -1798,12 +1906,20 @@ const cancelReservation =
                     );
                 }
 
+
                 return res.json({
                     success: true,
                     message:
                         "Reservation cancelled successfully. The next waitlist student will receive priority.",
                 });
             }
+
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "This reservation cannot be cancelled.",
+            });
 
         } catch (error) {
 
@@ -1819,6 +1935,7 @@ const cancelReservation =
             });
         }
     };
+
 
 // ===========================================================
 // STUDENT - RESERVATION STATUS
@@ -1841,8 +1958,11 @@ const getReservationStatus =
                 });
             }
 
+
             await expireStaleHolds();
+
             await expireWaitlistMatches();
+
 
             const reservation =
                 await Reservation.findOne({
@@ -1862,12 +1982,14 @@ const getReservationStatus =
                     createdAt: -1,
                 });
 
+
             if (!reservation) {
                 return res.json({
                     success: true,
                     status: null,
                 });
             }
+
 
             return res.json({
                 success: true,
@@ -1888,6 +2010,11 @@ const getReservationStatus =
 
         } catch (error) {
 
+            console.error(
+                "[Reservation] getReservationStatus:",
+                error
+            );
+
             return res.status(500).json({
                 success: false,
                 message:
@@ -1896,37 +2023,37 @@ const getReservationStatus =
         }
     };
 
+
 // ===========================================================
 // EXPORTS
 // ===========================================================
 
 module.exports = {
+
+    // Student
     requestReservation,
     getMyReservations,
+    getReservationStatus,
+    cancelReservation,
+
+    // Manager
     getPendingReservations,
     approveReservation,
     rejectReservation,
-    cancelReservation,
-    getReservationStatus,
 
+    // Waitlist / Jobs
     expireStaleHolds,
     expireWaitlistMatches,
     matchWaitlist,
     hasActiveRequest,
-
     claimBedForMatchedStudent,
+
+    // Room controller helper
     cancelReservationForFreedBed,
 
-    // Exported so other controllers can reuse the same
-    // validation helper and the same claim-window constant
-    // instead of redefining/hardcoding them.
+    // Shared helpers
     isValidId,
     WAITLIST_CLAIM_HOURS,
-
-    // Exported so waitlist.controller.js's claimMatchedBed
-    // validates/sanitizes applicantDetails the exact same
-    // way requestReservation does, instead of a second,
-    // possibly-drifting copy of the required-field list.
     validateApplicantDetails,
     sanitizeApplicantDetails,
 };

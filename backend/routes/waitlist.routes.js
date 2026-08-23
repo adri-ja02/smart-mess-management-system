@@ -1,26 +1,21 @@
-const express =
-    require("express");
+const express = require("express");
 
-const router =
-    express.Router();
-
+const router = express.Router();
 
 const {
-    getWaitlist,
-    getNotifications,
-    requestWaitlist,
-    claimMatchedBed,
-    findMatchingStudents,
-    cancelWaitlist,
-} =
-    require("../controllers/waitlist.controller");
-
+  getWaitlist,
+  getNotifications,
+  requestWaitlist,
+  claimMatchedBed,
+  findMatchingStudents,
+  getAllWaitlistForManager,
+  rejectWaitlistEntry,
+  cancelWaitlist,
+} = require("../controllers/waitlist.controller");
 
 const {
-    protect,
-} =
-    require("../middleware/auth.middleware");
-
+  protect,
+} = require("../middleware/auth.middleware");
 
 // ===========================================================
 // STUDENT
@@ -28,57 +23,62 @@ const {
 
 // My waitlist
 router.get(
-    "/",
-    protect,
-    getWaitlist
+  "/",
+  protect,
+  getWaitlist
 );
-
 
 // Notifications
 router.get(
-    "/notifications",
-    protect,
-    getNotifications
+  "/notifications",
+  protect,
+  getNotifications
 );
-
 
 // Join waitlist
 router.post(
-    "/",
-    protect,
-    requestWaitlist
+  "/",
+  protect,
+  requestWaitlist
 );
 
-
-// Claim a matched bed while priority is still active.
-// Window length is WAITLIST_CLAIM_HOURS in
-// reservation.controller.js — not hardcoded here so this
-// comment can't go stale if that value changes.
+// Claim matched bed
 router.patch(
-    "/:id/claim",
-    protect,
-    claimMatchedBed
+  "/:id/claim",
+  protect,
+  claimMatchedBed
 );
-
 
 // Leave waitlist
 router.patch(
-    "/:id/cancel",
-    protect,
-    cancelWaitlist
+  "/:id/cancel",
+  protect,
+  cancelWaitlist
 );
-
 
 // ===========================================================
 // MANAGER
 // ===========================================================
 
+// Matching students for a specific room
 router.get(
-    "/match/:roomId",
-    protect,
-    findMatchingStudents
+  "/match/:roomId",
+  protect,
+  findMatchingStudents
 );
 
+// All waitlist entries
+router.get(
+  "/all",
+  protect,
+  getAllWaitlistForManager
+);
 
-module.exports =
-    router;
+// Reject waitlist entry
+router.patch(
+  "/:id/reject",
+  protect,
+  rejectWaitlistEntry
+);
+
+module.exports = router;

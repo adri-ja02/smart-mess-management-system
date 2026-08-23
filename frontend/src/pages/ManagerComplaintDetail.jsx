@@ -1,27 +1,20 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useParams,
+} from "react-router-dom";
 
 import {
   getComplaintByIdForManager,
   assignComplaint,
   updateComplaintStatus,
-  askReviewQuestion,
+  uploadCompletionEvidence,
 } from "../services/complaintService";
 
 import ComplaintTimeline from "../components/ComplaintTimeline";
-
-const STATUSES = [
-  "Submitted",
-  "Under Review",
-  "Insufficient Evidence",
-  "Duplicate",
-  "Confirmed False",
-  "Valid",
-  "Assigned",
-  "In Progress",
-  "Repair Completed",
-  "Closed",
-];
 
 const WORKER_TYPES = [
   "Plumber",
@@ -30,156 +23,233 @@ const WORKER_TYPES = [
   "Other",
 ];
 
+const STATUS_OPTIONS = [
+  "In Progress",
+  "Repair Completed",
+];
+
 function ManagerComplaintDetail() {
   const { id } = useParams();
 
-  const [complaint, setComplaint] = useState(null);
-  const [error, setError] = useState("");
+  const [complaint, setComplaint] =
+    useState(null);
 
-  // Assignment
-  const [workerType, setWorkerType] = useState("");
-  const [workerName, setWorkerName] = useState("");
+  const [error, setError] =
+    useState("");
 
-  // Status
-  const [statusChoice, setStatusChoice] = useState("");
+  const [loading, setLoading] =
+    useState(true);
 
-  // Review question
-  const [question, setQuestion] = useState("");
+  const [workerType, setWorkerType] =
+    useState("");
+
+  const [workerName, setWorkerName] =
+    useState("");
+
+  const [targetDate, setTargetDate] =
+    useState("");
+
+  const [statusChoice, setStatusChoice] =
+    useState("");
+
+  const [completionFiles, setCompletionFiles] =
+    useState([]);
 
   /* =========================================================
-     LOAD COMPLAINT
+     HELPERS
   ========================================================= */
 
-  // loadWorker = true only when page first opens.
-  // loadWorker = false during 5-second refresh.
-  const load = async (loadWorker = false) => {
-    try {
-      setError("");
+  const isRepairCompleted =
+    complaint?.status ===
+    "Repair Completed";
 
-      const data = await getComplaintByIdForManager(id);
+  const isClosed =
+    complaint?.status ===
+    "Closed";
 
-      // Always update complaint information
-      setComplaint(data.complaint);
+  const isActionBlocked =
+    isRepairCompleted ||
+    isClosed;
 
-      // Always update status
-      setStatusChoice(data.complaint.status || "");
+  const getStatusBadgeClass = (
+    status
+  ) => {
+    switch (status) {
+      case "Valid":
+        return "badge bg-success";
 
-      /*
-        IMPORTANT:
+      case "Assigned":
+        return "badge bg-primary";
 
-        Only load the assigned worker when the page
-        is opened for the first time.
+      case "In Progress":
+        return "badge bg-warning text-dark";
 
-        During the 5-second refresh we DO NOT update
-        workerType or workerName.
+      case "Repair Completed":
+        return "badge bg-success";
 
-        This prevents the manager's worker selection
-        from disappearing.
-      */
-      if (loadWorker) {
-        if (data.complaint.assignedTo) {
-          setWorkerType(
-            data.complaint.assignedTo.type || ""
-          );
+      case "Reopened":
+        return "badge bg-danger";
 
-          setWorkerName(
-            data.complaint.assignedTo.name || ""
-          );
-        } else {
-          setWorkerType("");
-          setWorkerName("");
-        }
-      }
-    } catch (err) {
-      console.error("LOAD COMPLAINT ERROR:", err);
+      case "Closed":
+        return "badge bg-secondary";
 
-      setError(
-        err.response?.data?.message ||
-          "Could not load complaint."
-      );
+      default:
+        return "badge bg-secondary";
     }
   };
 
+  const getStatusButtonClass = () => {
+    if (isClosed) {
+      return "btn btn-secondary w-100";
+    }
+
+    if (
+      statusChoice ===
+      "Repair Completed"
+    ) {
+      return "btn btn-success w-100";
+    }
+
+    if (
+      statusChoice ===
+      "In Progress"
+    ) {
+      return "btn btn-warning w-100";
+    }
+
+    return "btn btn-primary w-100";
+  };
+
   /* =========================================================
-     INITIAL LOAD + 5 SECOND REFRESH
+     LOAD
   ========================================================= */
 
+  const load = async () => {
+    try {
+      const data =
+        await getComplaintByIdForManager(
+          id
+        );
+
+      setComplaint(
+        data.complaint
+      );
+
+      setStatusChoice(
+        data.complaint.status
+      );
+
+      setWorkerType(
+        data.complaint
+          .assignedTo?.type ||
+        ""
+      );
+
+      setWorkerName(
+        data.complaint
+          .assignedTo?.name ||
+        ""
+      );
+
+      if (
+        data.complaint
+          .targetCompletionDate
+      ) {
+        setTargetDate(
+          new Date(
+            data.complaint
+              .targetCompletionDate
+          )
+            .toISOString()
+            .slice(
+              0,
+              16
+            )
+        );
+      } else {
+        setTargetDate("");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data
+          ?.message ||
+        "Could not load work order."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // First load:
-    // Load complaint + existing worker assignment
-    load(true);
+    load();
 
-    // Refresh complaint every 5 seconds.
-    // This updates:
-    // - Student answers
-    // - Additional notes
-    // - Evidence
-    // - Status
-    //
-    // But DOES NOT reset workerType/workerName.
-    const refreshInterval = setInterval(() => {
-      load(false);
-    }, 5000);
+    const interval =
+      setInterval(
+        load,
+        10000
+      );
 
-    // Stop refreshing when leaving the page
-    return () => clearInterval(refreshInterval);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () =>
+      clearInterval(
+        interval
+      );
   }, [id]);
 
   /* =========================================================
      ASSIGN WORKER
+     
+     Manager provides only:
+     - Worker Type
+     - Worker Name
+     - Target Completion Date
+     
+     Priority is NOT included because it is
+     already set by the resident.
   ========================================================= */
 
-  const handleAssign = async (e) => {
+  const handleAssign = async (
+    e
+  ) => {
     e.preventDefault();
 
-    setError("");
-
-    if (!workerType) {
-      setError("Please select a worker type.");
+    if (isActionBlocked) {
       return;
     }
 
-    if (!workerName.trim()) {
-      setError("Please enter the worker name.");
+    if (
+      !workerType ||
+      !workerName.trim() ||
+      !targetDate
+    ) {
+      setError(
+        "Worker type, worker name, and target completion date are required."
+      );
       return;
     }
 
     try {
-      const data = await assignComplaint(
-        id,
-        workerType,
-        workerName.trim()
+      const data =
+        await assignComplaint(
+          id,
+          workerType,
+          workerName.trim(),
+          targetDate
+        );
+
+      setComplaint(
+        data.complaint
       );
 
-      // Update complaint immediately on screen
-      setComplaint(data.complaint);
-
-      // Update status dropdown as well
-      setStatusChoice(data.complaint.status);
+      setStatusChoice(
+        data.complaint.status
+      );
 
       setError("");
-
-      // Keep the assigned worker visible
-      setWorkerType(
-        data.complaint.assignedTo?.type ||
-          workerType
-      );
-
-      setWorkerName(
-        data.complaint.assignedTo?.name ||
-          workerName.trim()
-      );
     } catch (err) {
-      console.error(
-        "ASSIGN WORKER ERROR:",
-        err
-      );
-
       setError(
-        err.response?.data?.message ||
-          "Could not assign worker."
+        err.response?.data
+          ?.message ||
+        "Could not assign work order."
       );
     }
   };
@@ -188,132 +258,155 @@ function ManagerComplaintDetail() {
      UPDATE STATUS
   ========================================================= */
 
-  const handleStatusChange = async (e) => {
+  const handleStatus = async (
+    e
+  ) => {
     e.preventDefault();
 
-    setError("");
-
-    if (!statusChoice) {
-      setError("Please select a status.");
+    if (isClosed) {
       return;
     }
 
-    // Don't send request if status hasn't changed
-    if (complaint.status === statusChoice) {
-      setError(
-        `Complaint is already "${statusChoice}".`
-      );
+    if (
+      !statusChoice ||
+      statusChoice ===
+        complaint.status
+    ) {
       return;
     }
 
     try {
-      const data = await updateComplaintStatus(
-        id,
-        statusChoice
+      const data =
+        await updateComplaintStatus(
+          id,
+          statusChoice
+        );
+
+      setComplaint(
+        data.complaint
       );
 
-      setComplaint(data.complaint);
-      setStatusChoice(data.complaint.status);
+      setStatusChoice(
+        data.complaint.status
+      );
 
       setError("");
     } catch (err) {
-      console.error(
-        "UPDATE STATUS ERROR:",
-        err
-      );
-
       setError(
-        err.response?.data?.message ||
-          "Could not update status."
+        err.response?.data
+          ?.message ||
+        "Could not update work-order status."
       );
     }
   };
 
   /* =========================================================
-     ASK REVIEW QUESTION
+     COMPLETION EVIDENCE
   ========================================================= */
 
-  const handleAskQuestion = async (e) => {
-    e.preventDefault();
+  const handleCompletionUpload =
+    async (e) => {
+      e.preventDefault();
 
-    setError("");
+      if (isClosed) {
+        return;
+      }
 
-    if (!question.trim()) {
-      setError("Please enter a question.");
-      return;
-    }
+      if (
+        completionFiles.length ===
+        0
+      ) {
+        setError(
+          "Select at least one completion-evidence file."
+        );
+        return;
+      }
 
-    try {
-      const data = await askReviewQuestion(
-        id,
-        question.trim()
-      );
+      try {
+        const data =
+          await uploadCompletionEvidence(
+            id,
+            completionFiles
+          );
 
-      setComplaint(data.complaint);
-      setQuestion("");
+        setComplaint(
+          data.complaint
+        );
 
-      setError("");
-    } catch (err) {
-      console.error(
-        "ASK QUESTION ERROR:",
-        err
-      );
+        setCompletionFiles(
+          []
+        );
 
-      setError(
-        err.response?.data?.message ||
-          "Could not send question."
-      );
-    }
-  };
+        setError("");
+      } catch (err) {
+        setError(
+          err.response?.data
+            ?.message ||
+          "Could not upload completion evidence."
+        );
+      }
+    };
 
   /* =========================================================
      LOADING
   ========================================================= */
 
-  if (!complaint && !error) {
-    return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <p>
+        Loading work order...
+      </p>
+    );
   }
 
   /* =========================================================
-     ERROR
+     NOT FOUND
   ========================================================= */
 
-  if (error && !complaint) {
+  if (!complaint) {
     return (
       <div className="alert alert-danger">
-        {error}
+        {error ||
+          "Work order not found."}
       </div>
     );
   }
+
+  /* =========================================================
+     PAGE
+  ========================================================= */
 
   return (
     <div className="row">
 
       {/* =====================================================
-          LEFT SIDE - COMPLAINT DETAILS
+          LEFT SIDE
       ===================================================== */}
 
       <div className="col-md-7">
 
         <h4>
-          Complaint #{complaint.ticketNumber}
+          Work Order #
+          {
+            complaint.ticketNumber
+          }
         </h4>
 
-        {/* MANUAL REFRESH */}
+        {/* VALID */}
 
-        <button
-          className="btn btn-outline-secondary btn-sm mb-3"
-          onClick={() => load(false)}
-        >
-          🔄 Refresh Complaint
-        </button>
+        <div className="alert alert-success">
+          This complaint was already marked{" "}
+          <strong>
+            Valid
+          </strong>{" "}
+          by the System Administrator.
+        </div>
 
-        <p className="text-muted small mb-3">
-          Reported anonymously. No resident identity is
-          attached to this record.
+        <p className="text-muted">
+          Resident identity and confidential
+          resident communication are not
+          available on this page.
         </p>
-
-        {/* ERROR MESSAGE */}
 
         {error && (
           <div className="alert alert-danger">
@@ -321,207 +414,257 @@ function ManagerComplaintDetail() {
           </div>
         )}
 
-        {/* ===================================================
-            COMPLAINT INFORMATION
-        =================================================== */}
+        {/* WORK ORDER INFORMATION */}
 
-        <div className="card mb-4">
+        <div className="card mb-3">
           <div className="card-body">
 
-            <h6 className="fw-bold mb-3">
-              Complaint Information
+            <h6>
+              Work Order Information
             </h6>
 
-            <ul className="list-unstyled mb-0">
+            <p>
+              <strong>
+                Ticket:
+              </strong>{" "}
+              {
+                complaint.ticketNumber
+              }
+            </p>
 
-              <li className="mb-2">
-                <strong>Ticket Number:</strong>{" "}
-                {complaint.ticketNumber}
-              </li>
+            <p>
+              <strong>
+                Location:
+              </strong>{" "}
+              {
+                complaint.location
+              }
+            </p>
 
-              <li className="mb-2">
-                <strong>Location:</strong>{" "}
-                {complaint.location}
-              </li>
+            <p>
+              <strong>
+                Category:
+              </strong>{" "}
+              {
+                complaint.category
+              }
+            </p>
 
-              <li className="mb-2">
-                <strong>Category:</strong>{" "}
-                {complaint.category}
-              </li>
+            {/* RESIDENT-SET PRIORITY */}
 
-              <li className="mb-2">
-                <strong>Urgency:</strong>{" "}
-                {complaint.urgency}
-              </li>
+            <p>
+              <strong>
+                Priority:
+              </strong>{" "}
 
-              <li className="mb-2">
-                <strong>Status:</strong>{" "}
-                <span className="badge bg-primary">
-                  {complaint.status}
-                </span>
-              </li>
+              <span
+                className={
+                  complaint.priority ===
+                    "Emergency"
+                    ? "badge bg-danger"
+                    : complaint.priority ===
+                        "High"
+                      ? "badge bg-warning text-dark"
+                      : complaint.priority ===
+                          "Low"
+                        ? "badge bg-secondary"
+                        : "badge bg-primary"
+                }
+              >
+                {
+                  complaint.priority ||
+                  complaint.urgency ||
+                  "Medium"
+                }
+              </span>
+            </p>
 
-              <li className="mb-2">
-                <strong>Assigned To:</strong>{" "}
+            <p>
+              <strong>
+                Status:
+              </strong>{" "}
 
-                {complaint.assignedTo ? (
-                  <>
-                    <span className="badge bg-info text-dark me-2">
-                      {complaint.assignedTo.type}
-                    </span>
-
-                    {complaint.assignedTo.name}
-                  </>
-                ) : (
-                  <span className="text-muted">
-                    Not yet assigned
-                  </span>
+              <span
+                className={getStatusBadgeClass(
+                  complaint.status
                 )}
-              </li>
+              >
+                {
+                  complaint.status
+                }
+              </span>
+            </p>
 
-              {complaint.assignedTo?.assignedAt && (
-                <li>
-                  <strong>Assigned At:</strong>{" "}
-                  {new Date(
-                    complaint.assignedTo.assignedAt
-                  ).toLocaleString()}
-                </li>
-              )}
+            {complaint.targetCompletionDate && (
+              <p>
+                <strong>
+                  Target completion:
+                </strong>{" "}
+                {new Date(
+                  complaint.targetCompletionDate
+                ).toLocaleString()}
+              </p>
+            )}
 
-            </ul>
+            {complaint.escalation
+              ?.isEscalated && (
+              <div className="alert alert-danger">
+                <strong>
+                  OVERDUE / ESCALATED
+                </strong>
+
+                <br />
+
+                {
+                  complaint.escalation
+                    .reason
+                }
+              </div>
+            )}
 
           </div>
         </div>
 
-        {/* ===================================================
-            PROBLEM
-        =================================================== */}
+        {/* PROBLEM DESCRIPTION */}
 
-        <div className="card mb-4">
+        <div className="card mb-3">
           <div className="card-body">
 
-            <h6 className="fw-bold">
-              Problem
+            <h6>
+              Problem Description
             </h6>
 
-            <p className="mb-0">
-              {complaint.description}
+            <p>
+              {
+                complaint.description
+              }
             </p>
 
           </div>
         </div>
 
-        {/* ===================================================
-            ADDITIONAL INFORMATION FROM STUDENT
-        =================================================== */}
+        {/* COMPLAINT EVIDENCE */}
 
-        {complaint.additionalNotes &&
-          complaint.additionalNotes.length > 0 && (
+        {complaint.evidence
+          ?.length > 0 && (
+          <div className="card mb-3">
+            <div className="card-body">
 
-            <div className="card mb-4">
-              <div className="card-body">
+              <h6>
+                Complaint Evidence
+              </h6>
 
-                <h6 className="fw-bold">
-                  Additional Information From Resident
-                </h6>
+              <div className="row">
 
-                {complaint.additionalNotes.map(
-                  (item, index) => (
-
+                {complaint.evidence.map(
+                  (
+                    item,
+                    index
+                  ) => (
                     <div
+                      className="col-md-6 mb-3"
                       key={
-                        item._id || index
+                        item.public_id ||
+                        index
                       }
-                      className="border rounded p-3 mb-2"
                     >
 
-                      <p className="mb-1">
-                        {item.note}
-                      </p>
-
-                      <small className="text-muted">
-                        {item.addedAt
-                          ? new Date(
-                              item.addedAt
-                            ).toLocaleString()
-                          : ""}
-                      </small>
+                      {item.type ===
+                      "video" ? (
+                        <video
+                          src={
+                            item.url
+                          }
+                          controls
+                          className="w-100 rounded"
+                        />
+                      ) : (
+                        <img
+                          src={
+                            item.url
+                          }
+                          alt="Complaint evidence"
+                          className="img-fluid rounded"
+                        />
+                      )}
 
                     </div>
                   )
                 )}
 
               </div>
+
             </div>
-          )}
+          </div>
+        )}
 
-        {/* ===================================================
-            EVIDENCE
-        =================================================== */}
+        {/* COMPLETION EVIDENCE */}
 
-        {complaint.evidence &&
-          complaint.evidence.length > 0 && (
+        {complaint.completionEvidence
+          ?.length > 0 && (
+          <div className="card mb-3 border-success">
+            <div className="card-body">
 
-            <div className="card mb-4">
-              <div className="card-body">
+              <h6>
+                Repair Completion Evidence
+              </h6>
 
-                <h6 className="fw-bold mb-3">
-                  Evidence
-                </h6>
+              <div className="row">
 
-                <div className="row">
+                {complaint.completionEvidence.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <div
+                      className="col-md-6 mb-3"
+                      key={
+                        item.public_id ||
+                        index
+                      }
+                    >
 
-                  {complaint.evidence.map(
-                    (item, index) => (
+                      {item.type ===
+                      "video" ? (
+                        <video
+                          src={
+                            item.url
+                          }
+                          controls
+                          className="w-100 rounded"
+                        />
+                      ) : (
+                        <img
+                          src={
+                            item.url
+                          }
+                          alt="Repair completion evidence"
+                          className="img-fluid rounded"
+                        />
+                      )}
 
-                      <div
-                        className="col-md-6 mb-3"
-                        key={
-                          item.public_id ||
-                          index
-                        }
-                      >
-
-                        {item.type === "video" ? (
-
-                          <video
-                            src={item.url}
-                            controls
-                            className="w-100 rounded"
-                          />
-
-                        ) : (
-
-                          <img
-                            src={item.url}
-                            alt="Complaint evidence"
-                            className="img-fluid rounded"
-                          />
-
-                        )}
-
-                      </div>
-                    )
-                  )}
-
-                </div>
+                    </div>
+                  )
+                )}
 
               </div>
-            </div>
-          )}
 
-        {/* ===================================================
-            TIMELINE
-        =================================================== */}
+            </div>
+          </div>
+        )}
+
+        {/* TIMELINE */}
 
         <ComplaintTimeline
-          complaint={complaint}
+          complaint={
+            complaint
+          }
         />
 
       </div>
 
       {/* =====================================================
-          RIGHT SIDE - MANAGER ACTIONS
+          RIGHT SIDE
       ===================================================== */}
 
       <div className="col-md-5">
@@ -533,16 +676,15 @@ function ManagerComplaintDetail() {
         <div className="card mb-3">
           <div className="card-body">
 
-            <h6 className="fw-bold">
+            <h6>
               Assign Worker
             </h6>
 
-            <p className="text-muted small">
-              Assign the appropriate worker after
-              reviewing the complaint.
-            </p>
-
-            <form onSubmit={handleAssign}>
+            <form
+              onSubmit={
+                handleAssign
+              }
+            >
 
               {/* WORKER TYPE */}
 
@@ -552,26 +694,33 @@ function ManagerComplaintDetail() {
 
               <select
                 className="form-select mb-3"
-                value={workerType}
+                value={
+                  workerType
+                }
                 onChange={(e) =>
-                  setWorkerType(e.target.value)
+                  setWorkerType(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  isActionBlocked
                 }
               >
 
                 <option value="">
-                  Select Worker Type
+                  Select worker type
                 </option>
 
-                {WORKER_TYPES.map((type) => (
-
-                  <option
-                    key={type}
-                    value={type}
-                  >
-                    {type}
-                  </option>
-
-                ))}
+                {WORKER_TYPES.map(
+                  (type) => (
+                    <option
+                      key={type}
+                      value={type}
+                    >
+                      {type}
+                    </option>
+                  )
+                )}
 
               </select>
 
@@ -582,20 +731,52 @@ function ManagerComplaintDetail() {
               </label>
 
               <input
-                type="text"
                 className="form-control mb-3"
-                placeholder="Enter worker name"
-                value={workerName}
+                value={
+                  workerName
+                }
                 onChange={(e) =>
-                  setWorkerName(e.target.value)
+                  setWorkerName(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  isActionBlocked
                 }
               />
+
+              {/* TARGET DATE */}
+
+              <label className="form-label">
+                Target Completion Date
+              </label>
+
+              <input
+                type="datetime-local"
+                className="form-control mb-3"
+                value={
+                  targetDate
+                }
+                onChange={(e) =>
+                  setTargetDate(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  isActionBlocked
+                }
+              />
+
+              {/* ASSIGN BUTTON */}
 
               <button
                 type="submit"
                 className="btn btn-primary w-100"
+                disabled={
+                  isActionBlocked
+                }
               >
-                Assign Worker
+                Assign Work Order
               </button>
 
             </form>
@@ -604,42 +785,75 @@ function ManagerComplaintDetail() {
         </div>
 
         {/* ===================================================
-            CHANGE STATUS
+            STATUS
         =================================================== */}
 
         <div className="card mb-3">
           <div className="card-body">
 
-            <h6 className="fw-bold">
-              Change Complaint Status
+            <h6>
+              Work Order Status
             </h6>
 
-            <form onSubmit={handleStatusChange}>
+            <form
+              onSubmit={
+                handleStatus
+              }
+            >
 
               <select
                 className="form-select mb-3"
-                value={statusChoice}
+                value={
+                  statusChoice
+                }
                 onChange={(e) =>
-                  setStatusChoice(e.target.value)
+                  setStatusChoice(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  isClosed
                 }
               >
 
-                {STATUSES.map((status) => (
+                <option
+                  value={
+                    complaint.status
+                  }
+                >
+                  {
+                    complaint.status
+                  }
+                </option>
 
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {status}
-                  </option>
-
-                ))}
+                {STATUS_OPTIONS.filter(
+                  (status) =>
+                    status !==
+                    complaint.status
+                ).map(
+                  (status) => (
+                    <option
+                      key={status}
+                      value={status}
+                    >
+                      {status}
+                    </option>
+                  )
+                )}
 
               </select>
 
               <button
                 type="submit"
-                className="btn btn-primary w-100"
+                className={
+                  getStatusButtonClass()
+                }
+                disabled={
+                  isClosed ||
+                  !statusChoice ||
+                  statusChoice ===
+                    complaint.status
+                }
               >
                 Update Status
               </button>
@@ -650,39 +864,53 @@ function ManagerComplaintDetail() {
         </div>
 
         {/* ===================================================
-            ASK REVIEW QUESTION
+            COMPLETION EVIDENCE
         =================================================== */}
 
-        <div className="card mb-3">
+        <div className="card mb-3 border-success">
           <div className="card-body">
 
-            <h6 className="fw-bold">
-              Ask Resident a Question
+            <h6>
+              Repair Completion Evidence
             </h6>
 
             <p className="text-muted small">
-              If more information is needed, ask the
-              resident a question. They can answer it
-              using their complaint tracking token.
+              Upload evidence after the assigned
+              maintenance person completes the
+              repair.
             </p>
 
-            <form onSubmit={handleAskQuestion}>
+            <form
+              onSubmit={
+                handleCompletionUpload
+              }
+            >
 
-              <textarea
-                className="form-control mb-2"
-                rows={4}
-                placeholder="Example: Can you confirm whether the pipe is leaking continuously?"
-                value={question}
+              <input
+                type="file"
+                className="form-control mb-3"
+                multiple
+                accept="image/*,video/*"
                 onChange={(e) =>
-                  setQuestion(e.target.value)
+                  setCompletionFiles(
+                    Array.from(
+                      e.target.files
+                    )
+                  )
+                }
+                disabled={
+                  isClosed
                 }
               />
 
               <button
                 type="submit"
-                className="btn btn-primary w-100"
+                className="btn btn-success w-100"
+                disabled={
+                  isClosed
+                }
               >
-                Send Question
+                Upload Completion Evidence
               </button>
 
             </form>
@@ -691,71 +919,31 @@ function ManagerComplaintDetail() {
         </div>
 
         {/* ===================================================
-            REVIEW QUESTIONS
+            REPAIR COMPLETED
         =================================================== */}
 
-        {complaint.reviewQuestions &&
-          complaint.reviewQuestions.length > 0 && (
+        {complaint.status ===
+          "Repair Completed" && (
+          <div className="alert alert-info">
+            Waiting for the anonymous resident
+            to verify the repair using the
+            private token.
+          </div>
+        )}
 
-            <div className="card">
+        {/* ===================================================
+            CLOSED
+        =================================================== */}
 
-              <div className="card-body">
-
-                <h6 className="fw-bold">
-                  Review Questions
-                </h6>
-
-                {complaint.reviewQuestions.map(
-                  (item, index) => (
-
-                    <div
-                      key={
-                        item._id || index
-                      }
-                      className="border rounded p-2 mb-2"
-                    >
-
-                      <div>
-                        <strong>
-                          Question:
-                        </strong>{" "}
-                        {item.question}
-                      </div>
-
-                      <div className="mt-1">
-
-                        <strong>
-                          Answer:
-                        </strong>{" "}
-
-                        {item.answer ? (
-
-                          <span>
-                            {item.answer}
-                          </span>
-
-                        ) : (
-
-                          <span className="text-muted">
-                            Waiting for resident
-                            response
-                          </span>
-
-                        )}
-
-                      </div>
-
-                    </div>
-                  )
-                )}
-
-              </div>
-
-            </div>
-          )}
+        {complaint.status ===
+          "Closed" && (
+          <div className="alert alert-success">
+            Resident confirmed that the repair
+            was resolved.
+          </div>
+        )}
 
       </div>
-
     </div>
   );
 }

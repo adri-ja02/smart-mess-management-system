@@ -52,10 +52,13 @@ const mealTypeLabels = {
   dinner: "Dinner",
 };
 
+/*
+ * Meal icons removed.
+ */
 const mealTypeIcons = {
-  breakfast: "☀️",
-  lunch: "🍱",
-  dinner: "🌙",
+  breakfast: "",
+  lunch: "",
+  dinner: "",
 };
 
 const statusChoices = [
@@ -414,7 +417,6 @@ const ManualCheckInPanel = ({
                   key={option.value}
                   value={option.value}
                 >
-                  {mealTypeIcons[option.value]}{" "}
                   {option.label}
                 </option>
               ))}
@@ -1066,11 +1068,6 @@ const MealCheckIn = () => {
                 m.mealType === "lunch"
             ) || todays[0];
 
-          /*
-           * IMPORTANT:
-           * Manual meal and Today's Status
-           * are initialized separately.
-           */
           setManualMealType(
             defaultMeal.mealType
           );
@@ -1158,7 +1155,6 @@ const MealCheckIn = () => {
 
   /* =====================================================
      LOAD TODAY'S STATUS
-     ONLY statusMealType controls this.
      ===================================================== */
 
   useEffect(() => {
@@ -1187,11 +1183,6 @@ const MealCheckIn = () => {
       status
     );
 
-    /*
-     * Refresh according to the STATUS meal.
-     * Manual meal selection does NOT change
-     * Today's Status category.
-     */
     await loadGrid(
       statusMenu?._id
     );
@@ -1331,7 +1322,7 @@ const MealCheckIn = () => {
 
             <p className="text-muted mb-0">
               {role === "manager"
-                ? "📋 QR meal check-in and consumption record"
+                ? "▦ QR meal check-in and consumption record"
                 : "📱 Show your QR code at the counter and track your meal history"}
             </p>
           </div>
@@ -1352,7 +1343,7 @@ const MealCheckIn = () => {
         <>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="mb-0 fw-bold">
-              🍽️ Your Confirmed Meals
+               Your Confirmed Meals
             </h5>
 
             <button
@@ -1394,7 +1385,7 @@ const MealCheckIn = () => {
                 return (
                   <>
                     <h6 className="text-muted mb-2">
-                      ☀️ Today
+                      Today
                     </h6>
 
                     {todaysTokens.length ===
@@ -1513,13 +1504,6 @@ const MealCheckIn = () => {
                   setManualMealType
                 }
                 pendingResidents={
-                  /*
-                   * Pending residents belong to
-                   * the manual meal currently selected.
-                   *
-                   * Therefore load a separate grid
-                   * for manual selection.
-                   */
                   manualMenu &&
                   manualMenu._id ===
                     statusMenu?._id
@@ -1565,9 +1549,6 @@ const MealCheckIn = () => {
                 <div className="small text-muted">
                   Currently viewing:{" "}
                   <strong>
-                    {mealTypeIcons[
-                      statusMealType
-                    ] || "🍽️"}{" "}
                     {mealTypeLabels[
                       statusMealType
                     ] || "—"}
@@ -1575,10 +1556,7 @@ const MealCheckIn = () => {
                 </div>
               </div>
 
-              {/* =================================================
-                  STATUS CATEGORY BUTTONS
-                  ================================================= */}
-
+              {/* STATUS CATEGORY BUTTONS */}
               <div className="d-flex gap-2 flex-wrap">
                 {todaysMenus.map((menu) => (
                   <button
@@ -1600,9 +1578,6 @@ const MealCheckIn = () => {
                       fontWeight: 600,
                     }}
                   >
-                    {mealTypeIcons[
-                      menu.mealType
-                    ] || "🍽️"}{" "}
                     {mealTypeLabels[
                       menu.mealType
                     ] ||

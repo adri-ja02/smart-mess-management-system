@@ -1,48 +1,96 @@
 const express = require("express");
+
 const router = express.Router();
 
 const {
-  requestReservation,
-  getMyReservations,
-  getPendingReservations,
-  approveReservation,
-  rejectReservation,
-  cancelReservation,
-  getReservationStatus,
+    requestReservation,
+    getMyReservations,
+    getPendingReservations,
+    approveReservation,
+    rejectReservation,
+    cancelReservation,
+    getReservationStatus,
 } = require("../controllers/reservation.controller");
 
-const { protect } = require("../middleware/auth.middleware");
+const {
+    protect,
+} = require("../middleware/auth.middleware");
 
-/* =====================================
-   STUDENT
-===================================== */
+/* ===========================================================
+   STUDENT - REQUEST BED
+   POST /api/reservations/request
+=========================================================== */
 
-// Request a bed
-router.post("/", protect, requestReservation);
+router.post(
+    "/request",
+    protect,
+    requestReservation
+);
 
-// View own reservations
-router.get("/my", protect, getMyReservations);
-
-// Cancel reservation
-router.patch("/:id/cancel", protect, cancelReservation);
-
-/* =====================================
-   MANAGER
-===================================== */
-
-// View pending requests
-router.get("/pending", protect, getPendingReservations);
-
-// Approve reservation
-router.patch("/:id/approve", protect, approveReservation);
-
-// Reject reservation
-router.patch("/:id/reject", protect, rejectReservation);
+/* ===========================================================
+   STUDENT - MY RESERVATIONS
+   GET /api/reservations/my
+=========================================================== */
 
 router.get(
-  "/status/:roomId",
-  protect,
-  getReservationStatus
+    "/my",
+    protect,
+    getMyReservations
+);
+
+/* ===========================================================
+   STUDENT - RESERVATION STATUS
+   GET /api/reservations/status/:roomId
+=========================================================== */
+
+router.get(
+    "/status/:roomId",
+    protect,
+    getReservationStatus
+);
+
+/* ===========================================================
+   STUDENT - CANCEL RESERVATION
+   DELETE /api/reservations/:id
+=========================================================== */
+
+router.delete(
+    "/:id",
+    protect,
+    cancelReservation
+);
+
+/* ===========================================================
+   MANAGER - ALL RESERVATIONS
+   GET /api/reservations/pending
+=========================================================== */
+
+router.get(
+    "/pending",
+    protect,
+    getPendingReservations
+);
+
+/* ===========================================================
+   MANAGER - APPROVE RESERVATION
+   PUT /api/reservations/:id/approve
+=========================================================== */
+
+router.put(
+    "/:id/approve",
+    protect,
+    approveReservation
+);
+
+/* ===========================================================
+   MANAGER - REJECT RESERVATION
+   PUT /api/reservations/:id/reject
+=========================================================== */
+
+router.put(
+    "/:id/reject",
+    protect,
+    rejectReservation
 );
 
 module.exports = router;

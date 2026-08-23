@@ -5,9 +5,7 @@ import CampusRouteMap from "../components/CampusRouteMap";
 import RoomLayout from "../components/RoomLayout";
 import roomService from "../services/roomService";
 
-import {
-  getMyReservations,
-} from "../services/reservationService";
+import { getMyReservations } from "../services/reservationService";
 
 import {
   getWaitlist,
@@ -22,10 +20,6 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 
-/* =========================================================
-   ACTIVE REQUEST STATUSES
-========================================================= */
-
 const ACTIVE_RESERVATION_STATUSES = [
   "pending",
   "approved",
@@ -36,32 +30,34 @@ const ACTIVE_WAITLIST_STATUSES = [
   "matched",
 ];
 
-/* =========================================================
-   REFRESH INTERVALS
-========================================================= */
-
-const ROOM_REFRESH_INTERVAL = 10000; // 10 seconds
-const ELIGIBILITY_REFRESH_INTERVAL = 10000; // 10 seconds
-
-/* =========================================================
-   COMPONENT
-========================================================= */
+const ROOM_REFRESH_INTERVAL = 10000;
+const ELIGIBILITY_REFRESH_INTERVAL = 10000;
 
 const RoomDetails = () => {
+  /*
+   * =========================================================
+   * ALWAYS START ROOM DETAILS FROM THE TOP
+   * =========================================================
+   */
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, []);
+
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const isStudent = user?.role === "student";
 
-  /* =======================================================
-     STATE
-  ======================================================= */
-
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [selectedBedId, setSelectedBedId] = useState(null);
+  const [selectedBedId, setSelectedBedId] =
+    useState(null);
 
   const [hasActiveRequest, setHasActiveRequest] =
     useState(false);
@@ -72,9 +68,9 @@ const RoomDetails = () => {
   const [submitting, setSubmitting] =
     useState(false);
 
-  /* =======================================================
+  /* =========================================================
      LOAD ROOM
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     let active = true;
@@ -112,9 +108,9 @@ const RoomDetails = () => {
     };
   }, [id]);
 
-  /* =======================================================
+  /* =========================================================
      AUTOMATIC ROOM REFRESH
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     let active = true;
@@ -126,8 +122,7 @@ const RoomDetails = () => {
 
         if (!active) return;
 
-        const updatedRoom =
-          res.data.room;
+        const updatedRoom = res.data.room;
 
         setRoom(updatedRoom);
 
@@ -135,16 +130,6 @@ const RoomDetails = () => {
           (updatedRoom.beds || []).filter(
             (bed) => !bed.isArchived
           );
-
-        /*
-         * Keep selected bed only if it still exists.
-         *
-         * We intentionally DO NOT clear selection
-         * just because a bed becomes occupied/onHold.
-         *
-         * This is important because students must be
-         * able to see the Join Waitlist option.
-         */
 
         const selectedBedStillExists =
           updatedActiveBeds.some(
@@ -172,11 +157,10 @@ const RoomDetails = () => {
       }
     };
 
-    const interval =
-      setInterval(
-        refreshRoomAutomatically,
-        ROOM_REFRESH_INTERVAL
-      );
+    const interval = setInterval(
+      refreshRoomAutomatically,
+      ROOM_REFRESH_INTERVAL
+    );
 
     return () => {
       active = false;
@@ -184,9 +168,9 @@ const RoomDetails = () => {
     };
   }, [id, selectedBedId]);
 
-  /* =======================================================
+  /* =========================================================
      CHECK STUDENT ELIGIBILITY
-  ======================================================= */
+  ========================================================= */
 
   const checkEligibility = async (
     isMounted = true
@@ -210,28 +194,18 @@ const RoomDetails = () => {
 
       if (!isMounted) return;
 
-      /*
-       * Check active reservation.
-       */
-
       const activeReservation =
         (
-          reservationsRes.reservations ||
-          []
+          reservationsRes.reservations || []
         ).some((reservation) =>
           ACTIVE_RESERVATION_STATUSES.includes(
             reservation.status
           )
         );
 
-      /*
-       * Check active waitlist.
-       */
-
       const activeWaitlist =
         (
-          waitlistRes.waitlist ||
-          []
+          waitlistRes.waitlist || []
         ).some((entry) =>
           ACTIVE_WAITLIST_STATUSES.includes(
             entry.status
@@ -240,19 +214,13 @@ const RoomDetails = () => {
 
       setHasActiveRequest(
         activeReservation ||
-        activeWaitlist
+          activeWaitlist
       );
     } catch (error) {
       console.error(
         "Eligibility check failed:",
         error
       );
-
-      /*
-       * Backend still performs the real
-       * validation, so frontend can fail open
-       * when there is a temporary network issue.
-       */
 
       if (isMounted) {
         setHasActiveRequest(false);
@@ -264,9 +232,9 @@ const RoomDetails = () => {
     }
   };
 
-  /* =======================================================
+  /* =========================================================
      INITIAL ELIGIBILITY CHECK
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     let active = true;
@@ -278,21 +246,20 @@ const RoomDetails = () => {
     };
   }, [user, isStudent]);
 
-  /* =======================================================
+  /* =========================================================
      AUTOMATIC ELIGIBILITY REFRESH
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     if (!isStudent) {
-      return;
+      return undefined;
     }
 
     let active = true;
 
-    const interval =
-      setInterval(() => {
-        checkEligibility(active);
-      }, ELIGIBILITY_REFRESH_INTERVAL);
+    const interval = setInterval(() => {
+      checkEligibility(active);
+    }, ELIGIBILITY_REFRESH_INTERVAL);
 
     return () => {
       active = false;
@@ -300,17 +267,16 @@ const RoomDetails = () => {
     };
   }, [isStudent, user]);
 
-  /* =======================================================
+  /* =========================================================
      MANUAL ROOM REFRESH
-  ======================================================= */
+  ========================================================= */
 
   const refreshRoom = async () => {
     try {
       const res =
         await roomService.getRoom(id);
 
-      const updatedRoom =
-        res.data.room;
+      const updatedRoom = res.data.room;
 
       setRoom(updatedRoom);
 
@@ -325,16 +291,34 @@ const RoomDetails = () => {
     }
   };
 
-  /* =======================================================
+  /* =========================================================
      LOADING
-  ======================================================= */
+  ========================================================= */
 
   if (loading) {
     return (
-      <div className="container py-4">
-        <div className="text-center">
+      <div
+        className="container-fluid d-flex align-items-center justify-content-center"
+        style={{
+          minHeight: "100vh",
+          background:
+            "linear-gradient(135deg, #f8f6fa 0%, #f1ebf5 100%)",
+        }}
+      >
+        <div
+          className="text-center bg-white rounded-4 shadow-sm p-5"
+          style={{
+            maxWidth: "420px",
+            width: "90%",
+          }}
+        >
           <div
-            className="spinner-border"
+            className="spinner-border mb-4"
+            style={{
+              color: "#6D597A",
+              width: "2.5rem",
+              height: "2.5rem",
+            }}
             role="status"
           >
             <span className="visually-hidden">
@@ -342,43 +326,101 @@ const RoomDetails = () => {
             </span>
           </div>
 
-          <p className="mt-2">
-            Loading Room...
+          <h5
+            className="fw-bold mb-2"
+            style={{
+              color: "#3F3547",
+            }}
+          >
+            Loading Room Details
+          </h5>
+
+          <p className="text-muted mb-0">
+            Please wait while the room information
+            is loaded.
           </p>
         </div>
       </div>
     );
   }
 
-  /* =======================================================
+  /* =========================================================
      ROOM NOT FOUND
-  ======================================================= */
+  ========================================================= */
 
   if (!room) {
     return (
-      <div className="container py-4">
-        <div className="alert alert-danger">
-          Room not found.
+      <div
+        className="container-fluid d-flex align-items-center justify-content-center"
+        style={{
+          minHeight: "100vh",
+          background:
+            "linear-gradient(135deg, #f8f6fa 0%, #f1ebf5 100%)",
+        }}
+      >
+        <div
+          className="card border-0 shadow-sm rounded-4"
+          style={{
+            maxWidth: "500px",
+            width: "90%",
+          }}
+        >
+          <div className="card-body text-center p-5">
+            <div
+              className="mx-auto mb-4"
+              style={{
+                width: "55px",
+                height: "4px",
+                borderRadius: "10px",
+                background:
+                  "linear-gradient(90deg, #6D597A, #B56576)",
+              }}
+            />
+
+            <h3
+              className="fw-bold mb-3"
+              style={{
+                color: "#3F3547",
+              }}
+            >
+              Room Not Found
+            </h3>
+
+            <p className="text-muted mb-4">
+              The requested room could not be found.
+            </p>
+
+            <button
+              type="button"
+              className="btn text-white rounded-pill px-4 py-2 fw-semibold"
+              style={{
+                background:
+                  "linear-gradient(135deg, #6D597A, #8B6F9E)",
+              }}
+              onClick={() => navigate(-1)}
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  /* =======================================================
+  /* =========================================================
      ACTIVE BEDS
-  ======================================================= */
+  ========================================================= */
 
   const activeBeds =
     (room.beds || []).filter(
       (bed) => !bed.isArchived
     );
 
-  /* =======================================================
+  /* =========================================================
      BED STATISTICS
-  ======================================================= */
+  ========================================================= */
 
-  const totalBeds =
-    activeBeds.length;
+  const totalBeds = activeBeds.length;
 
   const occupiedBeds =
     activeBeds.filter(
@@ -399,14 +441,9 @@ const RoomDetails = () => {
         !bed.onHold
     ).length;
 
-  /* =======================================================
+  /* =========================================================
      SELECTION LOCK
-     
-     IMPORTANT:
-     We DO NOT lock because a bed is occupied/onHold.
-     Those beds must remain clickable so the student
-     can join the waitlist.
-  ======================================================= */
+  ========================================================= */
 
   const selectionLocked =
     !isStudent ||
@@ -414,9 +451,9 @@ const RoomDetails = () => {
     hasActiveRequest ||
     submitting;
 
-  /* =======================================================
+  /* =========================================================
      SELECTED BED
-  ======================================================= */
+  ========================================================= */
 
   const selectedBed =
     activeBeds.find(
@@ -425,17 +462,11 @@ const RoomDetails = () => {
         selectedBedId
     );
 
-  /* =======================================================
+  /* =========================================================
      SELECT BED
-  ======================================================= */
+  ========================================================= */
 
   const selectBed = (bed) => {
-    /*
-     * Only block when the student already has
-     * an active reservation/waitlist or while
-     * submitting.
-     */
-
     if (selectionLocked) {
       return;
     }
@@ -445,11 +476,6 @@ const RoomDetails = () => {
 
     const isSelected =
       selectedBedId === bedId;
-
-    /*
-     * Clicking the same selected bed again
-     * unselects it.
-     */
 
     if (isSelected) {
       setSelectedBedId(null);
@@ -462,17 +488,6 @@ const RoomDetails = () => {
       return;
     }
 
-    /*
-     * Select ANY non-archived bed:
-     *
-     * Available
-     * Occupied
-     * On Hold
-     *
-     * Occupied/onHold are intentionally NOT
-     * blocked here because they can be waitlisted.
-     */
-
     setSelectedBedId(bedId);
 
     saveSelectedBedId(
@@ -481,9 +496,9 @@ const RoomDetails = () => {
     );
   };
 
-  /* =======================================================
+  /* =========================================================
      REQUEST AVAILABLE BED / JOIN WAITLIST
-  ======================================================= */
+  ========================================================= */
 
   const handleRequest = async () => {
     if (
@@ -492,16 +507,6 @@ const RoomDetails = () => {
     ) {
       return;
     }
-
-    /*
-     * AVAILABLE BED
-     *
-     * Instead of reserving immediately, send the student to
-     * the bed request details form. The manager needs the
-     * applicant's info before approving/rejecting, so the
-     * actual requestReservation() call happens there once
-     * that form is submitted.
-     */
 
     if (
       !selectedBed.occupied &&
@@ -525,12 +530,6 @@ const RoomDetails = () => {
     setSubmitting(true);
 
     try {
-      /*
-       * OCCUPIED OR ON-HOLD BED
-       *
-       * Add student to waitlist.
-       */
-
       const res =
         await requestWaitlist({
           roomId: room._id,
@@ -564,28 +563,17 @@ const RoomDetails = () => {
           "Something went wrong."
       );
 
-      /*
-       * Refresh after failure because
-       * another student may have claimed
-       * or changed the bed state.
-       */
-
       await refreshRoom();
     } finally {
       setSubmitting(false);
-
-      /*
-       * Re-check eligibility after
-       * request/waitlist operation.
-       */
 
       await checkEligibility();
     }
   };
 
-  /* =======================================================
+  /* =========================================================
      REQUEST BUTTON LABEL
-  ======================================================= */
+  ========================================================= */
 
   let requestButtonLabel = null;
 
@@ -602,9 +590,9 @@ const RoomDetails = () => {
     }
   }
 
-  /* =======================================================
-     SELECTED BED STATUS MESSAGE
-  ======================================================= */
+  /* =========================================================
+     SELECTED BED MESSAGE
+  ========================================================= */
 
   const selectedBedMessage =
     selectedBed
@@ -615,495 +603,1005 @@ const RoomDetails = () => {
         : `Bed ${selectedBed.bedNumber} is available. You can request it.`
       : null;
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  /* =========================================================
+     STAT CARD
+  ========================================================= */
 
-  return (
-    <div className="container py-4">
-      {/* =================================================
-          HEADER
-      ================================================= */}
+  const StatCard = ({
+    label,
+    value,
+    description,
+    accent,
+  }) => (
+    <div className="col-6 col-lg-3">
+      <div
+        className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden"
+        style={{
+          transition:
+            "transform 0.2s ease",
+        }}
+      >
+        <div
+          style={{
+            height: "4px",
+            background: accent,
+          }}
+        />
 
-      <div className="d-flex justify-content-between align-items-center">
-        <h2 className="fw-bold">
-          Room {room.roomNumber}
-        </h2>
+        <div className="card-body p-4">
+          <small
+            className="fw-bold"
+            style={{
+              color: accent,
+              letterSpacing: "0.8px",
+              fontSize: "11px",
+            }}
+          >
+            {label}
+          </small>
 
-        <button
-          className="btn btn-secondary"
-          onClick={() =>
-            navigate(-1)
-          }
-        >
-          Back
-        </button>
-      </div>
-
-      <hr />
-
-      {/* =================================================
-          ROOM IMAGES
-      ================================================= */}
-
-      <h4 className="mb-3">
-        Room Images
-      </h4>
-
-      {room.images?.length > 0 ? (
-        <div className="row">
-          {room.images.map(
-            (img, index) => (
-              <div
-                className="col-md-4 mb-3"
-                key={
-                  img.public_id ||
-                  index
-                }
-              >
-                <img
-                  src={img.url}
-                  alt={`Room ${room.roomNumber}`}
-                  className="img-fluid rounded"
-                  style={{
-                    height: "250px",
-                    width: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              </div>
-            )
-          )}
-        </div>
-      ) : (
-        <p>
-          No images available.
-        </p>
-      )}
-
-      <hr />
-
-      {/* =================================================
-          BASIC INFORMATION
-      ================================================= */}
-
-      <h4>
-        Basic Information
-      </h4>
-
-      <div className="row">
-        <div className="col-md-6 mb-2">
-          <strong>
-            Building:
-          </strong>{" "}
-          {room.building?.name ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Floor:
-          </strong>{" "}
-          {room.floor?.number ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Location:
-          </strong>{" "}
-          {room.messLocation ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Rent:
-          </strong>{" "}
-          ৳{room.rent || 0}
-        </div>
-      </div>
-
-      <hr />
-
-      {/* =================================================
-          ROOM SPACE PASSPORT
-      ================================================= */}
-
-      <h4>
-        Room Space Passport
-      </h4>
-
-      <div className="row">
-        <div className="col-md-6 mb-2">
-          <strong>
-            Total Area:
-          </strong>{" "}
-          {room.totalArea ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Usable Area:
-          </strong>{" "}
-          {room.usableArea ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Storage:
-          </strong>{" "}
-          {room.storage || "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Bathroom:
-          </strong>{" "}
-          {room.bathroomType ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Natural Light:
-          </strong>{" "}
-          {room.naturalLightLevel ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Ventilation:
-          </strong>{" "}
-          {room.ventilationNotes ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Utility Policy:
-          </strong>{" "}
-          {room.utilityPolicy ||
-            "-"}
-        </div>
-
-        <div className="col-md-6 mb-2">
-          <strong>
-            Amenities:
-          </strong>{" "}
-          {room.amenities?.length
-            ? room.amenities.join(
-                ", "
-              )
-            : "None"}
-        </div>
-      </div>
-
-      <hr />
-
-      {/* =================================================
-          VISUAL ROOM LAYOUT
-      ================================================= */}
-
-      <h4 className="mb-3">
-        Visual Room Layout
-      </h4>
-
-      {isStudent &&
-        !checkingEligibility &&
-        hasActiveRequest && (
-          <div className="alert alert-warning">
-            You already have an active
-            reservation or waitlist
-            request. You cannot request
-            or join another bed until
-            your current request is
-            resolved.
+          <div
+            className="fw-bold mt-2"
+            style={{
+              fontSize: "32px",
+              lineHeight: "1",
+              color: "#332B39",
+            }}
+          >
+            {value}
           </div>
-        )}
 
-      <RoomLayout
-        beds={activeBeds}
-        layout={room.layout}
-        selectedBedId={selectedBedId}
-        onSelectBed={selectBed}
-        selectionDisabled={
-          selectionLocked
-        }
+          <small className="text-muted d-block mt-2">
+            {description}
+          </small>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================================================
+     SECTION HEADER
+  ========================================================= */
+
+  const SectionHeader = ({
+    title,
+    subtitle,
+  }) => (
+    <div className="mb-4">
+      <div
+        style={{
+          width: "42px",
+          height: "4px",
+          borderRadius: "10px",
+          background:
+            "linear-gradient(90deg, #6D597A, #B56576)",
+          marginBottom: "12px",
+        }}
       />
 
-      {/* =================================================
-          SELECTED BED INFORMATION
-      ================================================= */}
-
-      {isStudent &&
-        selectedBed &&
-        !hasActiveRequest && (
-          <div className="mt-3">
-            <div
-              className={`alert ${
-                selectedBed.occupied ||
-                selectedBed.onHold
-                  ? "alert-warning"
-                  : "alert-success"
-              }`}
-            >
-              {selectedBedMessage}
-            </div>
-
-            <button
-              className={`btn ${
-                selectedBed.occupied ||
-                selectedBed.onHold
-                  ? "btn-warning"
-                  : "btn-primary"
-              }`}
-              disabled={
-                submitting ||
-                checkingEligibility
-              }
-              onClick={
-                handleRequest
-              }
-            >
-              {submitting
-                ? "Processing..."
-                : requestButtonLabel}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-outline-secondary ms-2"
-              disabled={submitting}
-              onClick={() => {
-                setSelectedBedId(null);
-
-                saveSelectedBedId(
-                  room._id,
-                  null
-                );
-              }}
-            >
-              Cancel Selection
-            </button>
-          </div>
-        )}
-
-      <hr />
-
-      {/* =================================================
-          BED INVENTORY
-      ================================================= */}
-
-      <h4>
-        Bed Inventory
+      <h4
+        className="fw-bold mb-1"
+        style={{
+          color: "#332B39",
+          letterSpacing: "-0.2px",
+        }}
+      >
+        {title}
       </h4>
 
-      <div className="row mb-3">
-        <div className="col-md-3">
-          <strong>
-            Total Beds:
-          </strong>{" "}
-          {totalBeds}
-        </div>
+      <small className="text-muted">
+        {subtitle}
+      </small>
+    </div>
+  );
 
-        <div className="col-md-3">
-          <strong className="text-success">
-            Available:
-          </strong>{" "}
-          {availableBeds}
-        </div>
+  /* =========================================================
+     MAIN PAGE
+  ========================================================= */
 
-        <div className="col-md-3">
-          <strong className="text-warning">
-            On Hold:
-          </strong>{" "}
-          {holdBeds}
-        </div>
+  return (
+    <div
+      className="container-fluid py-4"
+      style={{
+        background:
+          "linear-gradient(135deg, #F8F6FA 0%, #F5F1F7 100%)",
+        minHeight: "100vh",
+      }}
+    >
+      <div className="container">
 
-        <div className="col-md-3">
-          <strong className="text-danger">
-            Occupied:
-          </strong>{" "}
-          {occupiedBeds}
-        </div>
-      </div>
+        {/* =================================================
+            THIN PURPLE HEADER
+        ================================================= */}
 
-      {/* =================================================
-          BED TABLE
-          
-          NO ACTION COLUMN
-      ================================================= */}
+        <div
+          className="rounded-4 shadow-sm mb-4 overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #5D4B68 0%, #765C85 55%, #9E596A 100%)",
+            color: "#fff",
+          }}
+        >
+          <div className="py-3 px-4 px-md-5">
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+              <div>
+                <div
+                  className="text-uppercase mb-1"
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    letterSpacing: "2px",
+                    opacity: 0.75,
+                  }}
+                >
+                  Room Details
+                </div>
 
-      {activeBeds.length > 0 ? (
-        <table className="table table-bordered table-hover align-middle">
-          <thead className="table-light">
-            <tr>
-              <th>
-                Bed Number
-              </th>
+                <h2
+                  className="fw-bold mb-1"
+                  style={{
+                    fontSize: "24px",
+                    letterSpacing: "-0.3px",
+                  }}
+                >
+                  {room.building?.name ||
+                    "Building"}
 
-              <th>
-                Position
-              </th>
-
-              <th>
-                Status
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {activeBeds.map(
-              (bed, index) => {
-                const isSelected =
-                  selectedBedId ===
-                  bedSelectionKey(
-                    bed
-                  );
-
-                /*
-                 * All beds are clickable for students:
-                 *
-                 * Available → select for reservation
-                 * Occupied → select for waitlist
-                 * On Hold → select for waitlist
-                 */
-
-                const canSelect =
-                  isStudent &&
-                  !checkingEligibility &&
-                  !hasActiveRequest &&
-                  !submitting;
-
-                return (
-                  <tr
-                    key={
-                      bed._id ||
-                      index
-                    }
-                    className={
-                      isSelected
-                        ? "table-primary"
-                        : ""
-                    }
-                    style={
-                      canSelect
-                        ? {
-                            cursor:
-                              "pointer",
-                          }
-                        : undefined
-                    }
-                    tabIndex={
-                      canSelect
-                        ? 0
-                        : undefined
-                    }
-                    role={
-                      canSelect
-                        ? "button"
-                        : undefined
-                    }
-                    onClick={() =>
-                      selectBed(bed)
-                    }
-                    onKeyDown={(
-                      e
-                    ) => {
-                      if (
-                        canSelect &&
-                        (
-                          e.key ===
-                            "Enter" ||
-                          e.key ===
-                            " "
-                        )
-                      ) {
-                        e.preventDefault();
-
-                        selectBed(
-                          bed
-                        );
-                      }
+                  <span
+                    style={{
+                      opacity: 0.55,
+                      margin: "0 8px",
                     }}
                   >
-                    <td>
-                      {bed.bedNumber}
-                    </td>
+                    /
+                  </span>
 
-                    <td>
-                      {bed.position ||
-                        "-"}
-                    </td>
+                  Room {room.roomNumber}
+                </h2>
 
-                    <td>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    opacity: 0.82,
+                  }}
+                >
+                  Floor{" "}
+                  {room.floor?.number || "-"}
+
+                  <span className="mx-2">
+                    •
+                  </span>
+
+                  {room.messLocation ||
+                    "Location"}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm"
+                onClick={() =>
+                  navigate(-1)
+                }
+              >
+                Back
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: "2px",
+              background:
+                "linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.5), rgba(255,255,255,0.05))",
+            }}
+          />
+        </div>
+
+        {/* =================================================
+            BED STATISTICS
+        ================================================= */}
+
+        <div className="row g-3 mb-4">
+          <StatCard
+            label="TOTAL BEDS"
+            value={totalBeds}
+            description="Room capacity"
+            accent="#6D597A"
+          />
+
+          <StatCard
+            label="AVAILABLE"
+            value={availableBeds}
+            description="Ready for request"
+            accent="#3A8F62"
+          />
+
+          <StatCard
+            label="ON HOLD"
+            value={holdBeds}
+            description="Temporarily reserved"
+            accent="#C58A20"
+          />
+
+          <StatCard
+            label="OCCUPIED"
+            value={occupiedBeds}
+            description="Currently occupied"
+            accent="#B65A62"
+          />
+        </div>
+
+        {/* =================================================
+            ROOM GALLERY + BASIC INFORMATION
+        ================================================= */}
+
+        <div className="row g-4 mb-4">
+
+          {/* ROOM GALLERY */}
+
+          <div className="col-lg-7">
+            <div className="card border-0 shadow-sm rounded-4 h-100">
+              <div className="card-body p-4">
+                <SectionHeader
+                  title="Room Gallery"
+                  subtitle="Photos of this room"
+                />
+
+                {room.images?.length > 0 ? (
+                  <div className="row g-3">
+                    {room.images.map(
+                      (img, index) => (
+                        <div
+                          className={
+                            room.images.length ===
+                            1
+                              ? "col-12"
+                              : "col-12 col-md-6"
+                          }
+                          key={
+                            img.public_id ||
+                            index
+                          }
+                        >
+                          <div
+                            className="overflow-hidden rounded-4"
+                            style={{
+                              height:
+                                room.images.length ===
+                                1
+                                  ? "360px"
+                                  : "210px",
+                              border:
+                                "1px solid #EEE8F1",
+                            }}
+                          >
+                            <img
+                              src={img.url}
+                              alt={`Room ${room.roomNumber} ${index + 1}`}
+                              className="w-100 h-100"
+                              style={{
+                                objectFit:
+                                  "cover",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="rounded-4 d-flex align-items-center justify-content-center text-center"
+                    style={{
+                      height: "300px",
+                      background: "#F8F5FA",
+                      border:
+                        "1px dashed #D9CFDE",
+                    }}
+                  >
+                    <div>
+                      <div
+                        className="fw-semibold mb-1"
+                        style={{
+                          color: "#665A6B",
+                        }}
+                      >
+                        No Room Images
+                      </div>
+
+                      <small className="text-muted">
+                        No photos have been
+                        added for this room.
+                      </small>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* BASIC INFORMATION */}
+
+          <div className="col-lg-5">
+            <div className="card border-0 shadow-sm rounded-4 h-100">
+              <div className="card-body p-4">
+                <SectionHeader
+                  title="Basic Information"
+                  subtitle="Room location and rent"
+                />
+
+                <div className="d-flex flex-column gap-3">
+                  {[
+                    [
+                      "Building",
+                      room.building?.name ||
+                        "-",
+                    ],
+                    [
+                      "Floor",
+                      room.floor?.number ||
+                        "-",
+                    ],
+                    [
+                      "Mess Location",
+                      room.messLocation ||
+                        "-",
+                    ],
+                  ].map(
+                    ([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-4 p-3"
+                        style={{
+                          background:
+                            "#F8F6FA",
+                          border:
+                            "1px solid #ECE5EF",
+                        }}
+                      >
+                        <small
+                          className="text-muted d-block mb-1"
+                          style={{
+                            fontSize: "11px",
+                            textTransform:
+                              "uppercase",
+                            letterSpacing:
+                              "0.8px",
+                          }}
+                        >
+                          {label}
+                        </small>
+
+                        <div
+                          className="fw-semibold"
+                          style={{
+                            color:
+                              "#403747",
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  <div
+                    className="rounded-4 p-3"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #F1EAF5, #F8F3FA)",
+                      border:
+                        "1px solid #E5D9EA",
+                    }}
+                  >
+                    <small
+                      className="text-muted d-block mb-1"
+                      style={{
+                        fontSize: "11px",
+                        textTransform:
+                          "uppercase",
+                        letterSpacing:
+                          "0.8px",
+                      }}
+                    >
+                      Monthly Rent
+                    </small>
+
+                    <div
+                      className="fw-bold"
+                      style={{
+                        color: "#5F4A6B",
+                        fontSize: "24px",
+                      }}
+                    >
+                      ৳{room.rent || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+            SPACE PASSPORT
+        ================================================= */}
+
+        <div className="card border-0 shadow-sm rounded-4 mb-4">
+          <div className="card-body p-4">
+            <SectionHeader
+              title="Room Space Passport"
+              subtitle="Detailed room facilities and physical information"
+            />
+
+            <div className="row g-3">
+              {[
+                [
+                  "Total Area",
+                  room.totalArea || "-",
+                ],
+                [
+                  "Usable Area",
+                  room.usableArea || "-",
+                ],
+                [
+                  "Storage",
+                  room.storage || "-",
+                ],
+                [
+                  "Bathroom",
+                  room.bathroomType || "-",
+                ],
+                [
+                  "Natural Light",
+                  room.naturalLightLevel ||
+                    "-",
+                ],
+                [
+                  "Ventilation",
+                  room.ventilationNotes ||
+                    "-",
+                ],
+                [
+                  "Utility Policy",
+                  room.utilityPolicy || "-",
+                ],
+                [
+                  "Amenities",
+                  room.amenities?.length
+                    ? room.amenities.join(
+                        ", "
+                      )
+                    : "None",
+                ],
+              ].map(
+                ([label, value]) => (
+                  <div
+                    className="col-12 col-sm-6 col-lg-3"
+                    key={label}
+                  >
+                    <div
+                      className="p-3 rounded-4 h-100"
+                      style={{
+                        background:
+                          "#FBFAFC",
+                        border:
+                          "1px solid #EAE3ED",
+                      }}
+                    >
+                      <small
+                        className="text-muted d-block mb-2"
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          textTransform:
+                            "uppercase",
+                          letterSpacing:
+                            "0.6px",
+                        }}
+                      >
+                        {label}
+                      </small>
+
+                      <div
+                        className="fw-semibold"
+                        style={{
+                          color:
+                            "#443A48",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {value}
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+            VISUAL ROOM LAYOUT
+        ================================================= */}
+
+        <div className="card border-0 shadow-sm rounded-4 mb-4">
+          <div className="card-body p-4">
+            <SectionHeader
+              title="Visual Room Layout"
+              subtitle="Select an available bed or join a waitlist"
+            />
+
+            {isStudent &&
+              !checkingEligibility &&
+              hasActiveRequest && (
+                <div
+                  className="rounded-4 p-4 mb-4"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #FFF8E8, #FFF4D8)",
+                    border:
+                      "1px solid #F1DFAE",
+                  }}
+                >
+                  <div
+                    className="fw-bold mb-2"
+                    style={{
+                      color: "#7C5A17",
+                    }}
+                  >
+                    Active Request
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#75643F",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    You already have an active
+                    reservation or waitlist
+                    request. You cannot request
+                    or join another bed until your
+                    current request is resolved.
+                  </div>
+                </div>
+              )}
+
+            <div
+              className="p-3 p-md-4 rounded-4"
+              style={{
+                background:
+                  "linear-gradient(135deg, #FAF8FB, #F6F1F8)",
+                border:
+                  "1px solid #EAE2ED",
+              }}
+            >
+              <RoomLayout
+                beds={activeBeds}
+                layout={room.layout}
+                selectedBedId={
+                  selectedBedId
+                }
+                onSelectBed={selectBed}
+                selectionDisabled={
+                  selectionLocked
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+            SELECTED BED
+        ================================================= */}
+
+        {isStudent &&
+          selectedBed &&
+          !hasActiveRequest && (
+            <div className="card border-0 shadow-sm rounded-4 mb-4">
+              <div className="card-body p-4">
+                <div
+                  className="rounded-4 p-4"
+                  style={{
+                    background:
+                      selectedBed.occupied ||
+                      selectedBed.onHold
+                        ? "linear-gradient(135deg, #FFF8E8, #FFF3D5)"
+                        : "linear-gradient(135deg, #EDF8F1, #F5FBF7)",
+                    border:
+                      selectedBed.occupied ||
+                      selectedBed.onHold
+                        ? "1px solid #F0DCA7"
+                        : "1px solid #CDE7D5",
+                  }}
+                >
+                  <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4">
+                    <div>
                       <span
-                        className={`badge ${
-                          bed.occupied
-                            ? "bg-danger"
-                            : bed.onHold
+                        className={`badge rounded-pill px-3 py-2 mb-3 ${
+                          selectedBed.occupied ||
+                          selectedBed.onHold
                             ? "bg-warning text-dark"
-                            : isSelected
-                            ? "bg-primary"
                             : "bg-success"
                         }`}
                       >
-                        {bed.occupied
-                          ? "Occupied"
-                          : bed.onHold
-                          ? "On Hold"
-                          : isSelected
-                          ? "Selected"
-                          : "Available"}
+                        {selectedBed.occupied ||
+                        selectedBed.onHold
+                          ? "WAITLIST OPTION"
+                          : "AVAILABLE BED"}
                       </span>
-                    </td>
-                  </tr>
-                );
-              }
+
+                      <h5
+                        className="fw-bold mb-2"
+                        style={{
+                          color:
+                            "#3F3547",
+                        }}
+                      >
+                        Bed{" "}
+                        {selectedBed.bedNumber}
+                      </h5>
+
+                      <p className="mb-0 text-muted">
+                        {selectedBedMessage}
+                      </p>
+                    </div>
+
+                    <div className="d-flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={`btn rounded-pill px-4 py-2 fw-semibold ${
+                          selectedBed.occupied ||
+                          selectedBed.onHold
+                            ? "btn-warning"
+                            : "btn-success"
+                        }`}
+                        disabled={
+                          submitting ||
+                          checkingEligibility
+                        }
+                        onClick={
+                          handleRequest
+                        }
+                      >
+                        {submitting
+                          ? "Processing..."
+                          : requestButtonLabel}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold"
+                        disabled={submitting}
+                        onClick={() => {
+                          setSelectedBedId(
+                            null
+                          );
+
+                          saveSelectedBedId(
+                            room._id,
+                            null
+                          );
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* =================================================
+            BED INVENTORY
+        ================================================= */}
+
+        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+          <div className="card-body p-0">
+            <div className="p-4">
+              <SectionHeader
+                title="Bed Inventory"
+                subtitle="Current room occupancy"
+              />
+
+              <div className="d-flex justify-content-end">
+                <span
+                  className="badge rounded-pill px-3 py-2"
+                  style={{
+                    background:
+                      "#F1EAF5",
+                    color: "#6D597A",
+                  }}
+                >
+                  {totalBeds} Beds
+                </span>
+              </div>
+            </div>
+
+            {activeBeds.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #F7F3F9, #F2EDF5)",
+                    }}
+                  >
+                    <tr>
+                      <th
+                        className="px-4 py-3"
+                        style={{
+                          color:
+                            "#5A4D60",
+                          fontSize: "12px",
+                          textTransform:
+                            "uppercase",
+                          letterSpacing:
+                            "0.6px",
+                        }}
+                      >
+                        Bed Number
+                      </th>
+
+                      <th
+                        className="py-3"
+                        style={{
+                          color:
+                            "#5A4D60",
+                          fontSize: "12px",
+                          textTransform:
+                            "uppercase",
+                          letterSpacing:
+                            "0.6px",
+                        }}
+                      >
+                        Position
+                      </th>
+
+                      <th
+                        className="py-3"
+                        style={{
+                          color:
+                            "#5A4D60",
+                          fontSize: "12px",
+                          textTransform:
+                            "uppercase",
+                          letterSpacing:
+                            "0.6px",
+                        }}
+                      >
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {activeBeds.map(
+                      (bed, index) => {
+                        const isSelected =
+                          selectedBedId ===
+                          bedSelectionKey(
+                            bed
+                          );
+
+                        const canSelect =
+                          isStudent &&
+                          !checkingEligibility &&
+                          !hasActiveRequest &&
+                          !submitting;
+
+                        return (
+                          <tr
+                            key={
+                              bed._id ||
+                              index
+                            }
+                            className={
+                              isSelected
+                                ? "table-primary"
+                                : ""
+                            }
+                            style={{
+                              cursor:
+                                canSelect
+                                  ? "pointer"
+                                  : "default",
+                            }}
+                            tabIndex={
+                              canSelect
+                                ? 0
+                                : undefined
+                            }
+                            role={
+                              canSelect
+                                ? "button"
+                                : undefined
+                            }
+                            onClick={() =>
+                              selectBed(
+                                bed
+                              )
+                            }
+                            onKeyDown={(
+                              e
+                            ) => {
+                              if (
+                                canSelect &&
+                                (
+                                  e.key ===
+                                    "Enter" ||
+                                  e.key ===
+                                    " "
+                                )
+                              ) {
+                                e.preventDefault();
+
+                                selectBed(
+                                  bed
+                                );
+                              }
+                            }}
+                          >
+                            <td className="px-4">
+                              <div
+                                className="fw-bold"
+                                style={{
+                                  color:
+                                    "#443A48",
+                                }}
+                              >
+                                Bed{" "}
+                                {bed.bedNumber}
+                              </div>
+
+                              {isSelected && (
+                                <small className="text-primary">
+                                  Selected
+                                </small>
+                              )}
+                            </td>
+
+                            <td>
+                              <span className="text-muted">
+                                {bed.position ||
+                                  "Not specified"}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span
+                                className={`badge rounded-pill px-3 py-2 ${
+                                  bed.occupied
+                                    ? "bg-danger"
+                                    : bed.onHold
+                                    ? "bg-warning text-dark"
+                                    : isSelected
+                                    ? "bg-primary"
+                                    : "bg-success"
+                                }`}
+                              >
+                                {bed.occupied
+                                  ? "Occupied"
+                                  : bed.onHold
+                                  ? "On Hold"
+                                  : isSelected
+                                  ? "Selected"
+                                  : "Available"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-5 text-center">
+                <div
+                  className="fw-semibold mb-2"
+                  style={{
+                    color:
+                      "#4A3F50",
+                  }}
+                >
+                  No Beds Available
+                </div>
+
+                <p className="text-muted mb-0">
+                  This room currently has
+                  no active beds.
+                </p>
+              </div>
             )}
-          </tbody>
-        </table>
-      ) : (
-        <div className="alert alert-info">
-          No beds available.
+          </div>
         </div>
-      )}
 
-      <hr />
+        {/* =================================================
+            WAITLIST INFORMATION
+        ================================================= */}
 
-      {/* =================================================
-          WAITLIST INFORMATION
-      ================================================= */}
+        {isStudent && (
+          <div
+            className="card border-0 shadow-sm rounded-4 mb-4"
+            style={{
+              background:
+                "linear-gradient(135deg, #F5EFF8, #FBF8FC)",
+            }}
+          >
+            <div className="card-body p-4">
+              <div
+                style={{
+                  width: "42px",
+                  height: "4px",
+                  borderRadius: "10px",
+                  background:
+                    "linear-gradient(90deg, #6D597A, #B56576)",
+                  marginBottom: "18px",
+                }}
+              />
 
-      {isStudent && (
-        <div className="alert alert-info">
-          <strong>
-            Waitlist:
-          </strong>{" "}
-          If a bed is occupied or on
-          hold, you can select it and
-          join its waitlist. When the bed
-          becomes available, the first
-          student in the waitlist will be
-          notified first.
+              <h5
+                className="fw-bold mb-2"
+                style={{
+                  color:
+                    "#403547",
+                }}
+              >
+                How the Waitlist Works
+              </h5>
+
+              <p
+                className="mb-0"
+                style={{
+                  color:
+                    "#6E6372",
+                  lineHeight: 1.7,
+                }}
+              >
+                If a bed is occupied or on
+                hold, you can select it and
+                join its waitlist. When the
+                bed becomes available, the
+                first student in the waitlist
+                will be notified first.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================
+            CAMPUS ROUTE MAP
+        ================================================= */}
+
+        <div className="card border-0 shadow-sm rounded-4 mb-4">
+          <div className="card-body p-4">
+            <SectionHeader
+              title="Campus Route Map"
+              subtitle="Find the room location on campus"
+            />
+
+            <div
+              className="rounded-4 overflow-hidden"
+              style={{
+                background:
+                  "#F8F6FA",
+                border:
+                  "1px solid #EAE3ED",
+              }}
+            >
+              <CampusRouteMap
+                room={room}
+              />
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* =================================================
-          CAMPUS ROUTE MAP
-      ================================================= */}
-
-      <h4 className="mb-3">
-        Campus Route Map
-      </h4>
-
-      <CampusRouteMap
-        room={room}
-      />
+      </div>
     </div>
   );
 };

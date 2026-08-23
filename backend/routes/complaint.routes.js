@@ -3,30 +3,45 @@ const express = require("express");
 const {
   createComplaint,
   uploadComplaintEvidence,
+
   trackComplaint,
   addFollowUp,
   answerReviewQuestion,
-  getComplaintsForManager,
-  getComplaintByIdForManager,
+  verifyRepair,
+  acceptSiteInspection,
+
+  getComplaintsForAdmin,
+  getComplaintByIdForAdmin,
   askReviewQuestion,
+  updateManagerConflict,
+  assignAuthorizedAlternative,
+
+  getComplaintsForManager,
+  getComplaintStatsForManager,
+  getComplaintByIdForManager,
   updateComplaintStatus,
   assignComplaint,
+  uploadCompletionEvidence,
+
   reviewComplaintDecision,
   requestSiteInspection,
   withdrawComplaint,
-} = require("../controllers/complaint.controller");
 
-const { protect } = require("../middleware/auth.middleware");
+  getComplaintAnalytics,
+} = require("../controllers/complaint.Controller");
 
-// IMPORTANT:
-// Use the shared upload middleware.
-// It creates backend/uploads automatically
-// and will be configured for IMAGE ONLY.
+const {
+  protect,
+} = require("../middleware/auth.middleware");
+
 const upload = require("../middleware/upload.middleware");
 
-const router = express.Router();
+const router =
+  express.Router();
 
-/* ================= FEATURE 1: SUBMIT ================= */
+/* =========================================================
+   RESIDENT - SUBMIT
+========================================================= */
 
 router.post(
   "/",
@@ -34,7 +49,9 @@ router.post(
   createComplaint
 );
 
-/* ================= EVIDENCE IMAGE UPLOAD ================= */
+/* =========================================================
+   RESIDENT - EVIDENCE UPLOAD
+========================================================= */
 
 router.post(
   "/upload",
@@ -42,7 +59,9 @@ router.post(
   uploadComplaintEvidence
 );
 
-/* ================= FEATURE 2: TOKEN-ONLY FOLLOW-UP ================= */
+/* =========================================================
+   RESIDENT - PRIVATE TOKEN
+========================================================= */
 
 router.post(
   "/track",
@@ -59,12 +78,86 @@ router.post(
   answerReviewQuestion
 );
 
-/* ================= MANAGER / ADMIN ================= */
+router.post(
+  "/verify-repair",
+  verifyRepair
+);
+
+router.post(
+  "/accept-inspection",
+  acceptSiteInspection
+);
+
+/* =========================================================
+   ADMIN - INTEGRITY REVIEW
+ *
+ * These routes must appear BEFORE /:id.
+========================================================= */
+
+router.get(
+  "/admin",
+  protect,
+  getComplaintsForAdmin
+);
+
+router.get(
+  "/admin/analytics",
+  protect,
+  getComplaintAnalytics
+);
+
+router.get(
+  "/admin/:id",
+  protect,
+  getComplaintByIdForAdmin
+);
+
+/*
+ * Admin asks resident a confidential question.
+ */
+router.post(
+  "/admin/:id/question",
+  protect,
+  askReviewQuestion
+);
+
+/*
+ * Admin decides whether complaint concerns manager.
+ */
+router.put(
+  "/admin/:id/manager-conflict",
+  protect,
+  updateManagerConflict
+);
+
+/*
+ * Admin names the authorized alternative for a
+ * manager-conflict complaint.
+ */
+router.put(
+  "/admin/:id/alternative-handler",
+  protect,
+  assignAuthorizedAlternative
+);
+
+/* =========================================================
+   MANAGER - VALID WORK ORDERS ONLY
+========================================================= */
 
 router.get(
   "/",
   protect,
   getComplaintsForManager
+);
+
+/*
+ * Must appear BEFORE /:id, or "stats" would be
+ * interpreted as a complaint id.
+ */
+router.get(
+  "/stats",
+  protect,
+  getComplaintStatsForManager
 );
 
 router.get(
@@ -73,10 +166,10 @@ router.get(
   getComplaintByIdForManager
 );
 
-router.post(
-  "/:id/question",
+router.put(
+  "/:id/assign",
   protect,
-  askReviewQuestion
+  assignComplaint
 );
 
 router.put(
@@ -85,11 +178,25 @@ router.put(
   updateComplaintStatus
 );
 
-router.put(
-  "/:id/assign",
+/*
+ * Completion evidence.
+ *
+ * Current application has no Worker role, so this is
+ * performed through the maintenance/manager interface.
+ */
+router.post(
+  "/:id/completion-evidence",
   protect,
-  assignComplaint
+  upload.array(
+    "evidence",
+    5
+  ),
+  uploadCompletionEvidence
 );
+
+/* =========================================================
+   MALIHA - FINAL REVIEW
+========================================================= */
 
 router.put(
   "/:id/review",

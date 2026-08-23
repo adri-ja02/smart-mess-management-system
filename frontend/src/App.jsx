@@ -1,4 +1,8 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -19,19 +23,34 @@ import SpaceFitExplorer from "./pages/SpaceFitExplorer";
 import MyReservations from "./pages/MyReservations";
 import RequestBedForm from "./pages/RequestBedForm";
 import PendingReservations from "./pages/PendingReservations";
+import ReservationHistory from "./pages/ReservationHistory";
 import Waitlist from "./pages/Waitlist";
+import ManagerWaitlist from "./pages/ManagerWaitlist";
+
 import MealPlanner from "./pages/MealPlanner";
 import MealCheckIn from "./pages/MealCheckIn";
 import Billing from "./pages/Billing";
 import DemandForecast from "./pages/DemandForecast";
 import FoodWaste from "./pages/FoodWaste";
+
+/*
+ * MODULE 3
+ * CONFIDENTIAL COMPLAINT SYSTEM
+ */
+
+/* Resident */
 import AnonymousComplaint from "./pages/AnonymousComplaint";
 import ComplaintSubmitted from "./pages/ComplaintSubmitted";
 import TrackComplaint from "./pages/TrackComplaint";
+
+/* Admin */
+import AdminComplaintList from "./pages/AdminComplaintList";
+import AdminComplaintReview from "./pages/AdminComplaintReview";
+import ComplaintAnalytics from "./pages/ComplaintAnalytics";
+
+/* Manager */
 import ManagerComplaintDashboard from "./pages/ManagerComplaintDashboard";
 import ManagerComplaintDetail from "./pages/ManagerComplaintDetail";
-import AdminComplaintReview from "./pages/AdminComplaintReview";
-import AdminComplaintList from "./pages/AdminComplaintList";
 
 function App() {
   return (
@@ -40,13 +59,31 @@ function App() {
 
       <div className="container mt-4">
         <Routes>
-          {/* DEFAULT ROUTE */}
-          <Route path="/" element={<Navigate to="/auth" />} />
 
-          {/* AUTH */}
-          <Route path="/auth" element={<Auth />} />
+          {/* =========================================================
+              DEFAULT ROUTE
+          ========================================================= */}
 
-          {/* CHANGE PASSWORD */}
+          <Route
+            path="/"
+            element={
+              <Navigate to="/auth" replace />
+            }
+          />
+
+          {/* =========================================================
+              AUTH
+          ========================================================= */}
+
+          <Route
+            path="/auth"
+            element={<Auth />}
+          />
+
+          {/* =========================================================
+              CHANGE PASSWORD
+          ========================================================= */}
+
           <Route
             path="/change-password"
             element={
@@ -56,7 +93,10 @@ function App() {
             }
           />
 
-          {/* STUDENT DASHBOARD */}
+          {/* =========================================================
+              STUDENT DASHBOARD
+          ========================================================= */}
+
           <Route
             path="/student"
             element={
@@ -66,7 +106,10 @@ function App() {
             }
           />
 
-          {/* MANAGER DASHBOARD */}
+          {/* =========================================================
+              MANAGER DASHBOARD
+          ========================================================= */}
+
           <Route
             path="/manager"
             element={
@@ -75,6 +118,36 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* =========================================================
+              ADMIN DASHBOARD
+          ========================================================= */}
+
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute role="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =========================================================
+              PROFILE
+          ========================================================= */}
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =========================================================
+              STUDENT RESERVATIONS
+          ========================================================= */}
 
           <Route
             path="/my-reservations"
@@ -85,6 +158,15 @@ function App() {
             }
           />
 
+          {/* =========================================================
+              MANAGER - PENDING RESERVATIONS
+
+              ONLY:
+              - Pending
+              - Approve
+              - Reject
+          ========================================================= */}
+
           <Route
             path="/pending-reservations"
             element={
@@ -93,6 +175,32 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* =========================================================
+              MANAGER - RESERVATION HISTORY
+
+              ONLY:
+              - Approved
+              - Rejected
+              - Cancelled
+              - Expired
+              - View Details
+
+              NO APPROVE / REJECT
+          ========================================================= */}
+
+          <Route
+            path="/reservation-history"
+            element={
+              <ProtectedRoute role="manager">
+                <ReservationHistory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =========================================================
+              STUDENT - WAITLIST
+          ========================================================= */}
 
           <Route
             path="/waitlist"
@@ -103,27 +211,23 @@ function App() {
             }
           />
 
-          {/* ADMIN DASHBOARD */}
+          {/* =========================================================
+              MANAGER - WAITLIST
+          ========================================================= */}
+
           <Route
-            path="/admin"
+            path="/manager-waitlist"
             element={
-              <ProtectedRoute role="admin">
-                <AdminDashboard />
+              <ProtectedRoute role="manager">
+                <ManagerWaitlist />
               </ProtectedRoute>
             }
           />
 
-          {/* PROFILE */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
+          {/* =========================================================
+              ROOM MANAGEMENT - MANAGER
+          ========================================================= */}
 
-          {/* ROOM MANAGEMENT */}
           <Route
             path="/rooms"
             element={
@@ -133,10 +237,21 @@ function App() {
             }
           />
 
-          {/* ROOM DETAILS */}
-          <Route path="/rooms/:id" element={<RoomDetails />} />
+          {/* =========================================================
+              ROOM DETAILS
+          ========================================================= */}
 
-          {/* BED REQUEST DETAILS FORM (student submits info for manager review) */}
+          <Route
+            path="/rooms/:id"
+            element={
+              <RoomDetails />
+            }
+          />
+
+          {/* =========================================================
+              BED REQUEST - STUDENT
+          ========================================================= */}
+
           <Route
             path="/rooms/:id/request-bed"
             element={
@@ -146,7 +261,10 @@ function App() {
             }
           />
 
-          {/* ROOM EDIT */}
+          {/* =========================================================
+              ROOM EDIT - MANAGER
+          ========================================================= */}
+
           <Route
             path="/rooms/edit/:id"
             element={
@@ -156,7 +274,10 @@ function App() {
             }
           />
 
-          {/* MODULE 1 - SPACE FIT */}
+          {/* =========================================================
+              MODULE 1 - SPACE FIT
+          ========================================================= */}
+
           <Route
             path="/living-needs"
             element={
@@ -175,7 +296,10 @@ function App() {
             }
           />
 
-          {/* MODULE 2 - MEAL PLANNER */}
+          {/* =========================================================
+              MODULE 2 - MEAL PLANNER
+          ========================================================= */}
+
           <Route
             path="/meal-planner"
             element={
@@ -185,7 +309,10 @@ function App() {
             }
           />
 
-          {/* MODULE 2 - MEAL CHECK-IN & CONSUMPTION RECORD (Sadia's feature) */}
+          {/* =========================================================
+              MODULE 2 - MEAL CHECK-IN
+          ========================================================= */}
+
           <Route
             path="/meal-checkin"
             element={
@@ -195,7 +322,10 @@ function App() {
             }
           />
 
-          {/* BILLING - Student and Manager */}
+          {/* =========================================================
+              BILLING
+          ========================================================= */}
+
           <Route
             path="/billing"
             element={
@@ -205,7 +335,10 @@ function App() {
             }
           />
 
-          {/* DEMAND FORECAST */}
+          {/* =========================================================
+              DEMAND FORECAST
+          ========================================================= */}
+
           <Route
             path="/forecast"
             element={
@@ -215,7 +348,10 @@ function App() {
             }
           />
 
-          {/* FOOD WASTE MONITOR */}
+          {/* =========================================================
+              FOOD WASTE
+          ========================================================= */}
+
           <Route
             path="/food-waste"
             element={
@@ -225,7 +361,15 @@ function App() {
             }
           />
 
-          {/* MODULE 3 - ANONYMOUS COMPLAINTS (Adrija's features) */}
+          {/* =========================================================
+              MODULE 3
+              CONFIDENTIAL COMPLAINT SYSTEM
+          ========================================================= */}
+
+          {/* =========================================================
+              RESIDENT - NEW COMPLAINT
+          ========================================================= */}
+
           <Route
             path="/complaints/new"
             element={
@@ -234,6 +378,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* =========================================================
+              RESIDENT - COMPLAINT SUBMITTED
+          ========================================================= */}
 
           <Route
             path="/complaints/submitted"
@@ -244,27 +392,48 @@ function App() {
             }
           />
 
-          <Route path="/complaints/track" element={<TrackComplaint />} />
+          {/* =========================================================
+              RESIDENT - TOKEN TRACKING
+
+              Token-based confidential follow-up.
+          ========================================================= */}
+
+          <Route
+            path="/complaints/track"
+            element={
+              <TrackComplaint />
+            }
+          />
+
+          {/* =========================================================
+              MANAGER - VALID COMPLAINTS
+          ========================================================= */}
 
           <Route
             path="/manager/complaints"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="manager">
                 <ManagerComplaintDashboard />
               </ProtectedRoute>
             }
           />
 
+          {/* =========================================================
+              MANAGER - COMPLAINT DETAIL
+          ========================================================= */}
 
           <Route
             path="/manager/complaints/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="manager">
                 <ManagerComplaintDetail />
               </ProtectedRoute>
             }
           />
-          {/* MALIHA MODULE 3 - INDEPENDENT COMPLAINT REVIEW */}
+
+          {/* =========================================================
+              ADMIN - COMPLAINT LIST
+          ========================================================= */}
 
           <Route
             path="/admin/complaints"
@@ -275,6 +444,26 @@ function App() {
             }
           />
 
+          {/* =========================================================
+              ADMIN - COMPLAINT ANALYTICS
+
+              IMPORTANT:
+              Keep this BEFORE /admin/complaints/:id/review.
+          ========================================================= */}
+
+          <Route
+            path="/admin/complaints/analytics"
+            element={
+              <ProtectedRoute role="admin">
+                <ComplaintAnalytics />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =========================================================
+              ADMIN - INDEPENDENT COMPLAINT REVIEW
+          ========================================================= */}
+
           <Route
             path="/admin/complaints/:id/review"
             element={
@@ -284,15 +473,25 @@ function App() {
             }
           />
 
-          {/* 404 */}
+          {/* =========================================================
+              404
+          ========================================================= */}
+
           <Route
             path="*"
             element={
               <div className="text-center mt-5">
-                <h2>404 - Page Not Found</h2>
+                <h2>
+                  404 - Page Not Found
+                </h2>
+                <p className="text-muted">
+                  The page you are looking for
+                  does not exist.
+                </p>
               </div>
             }
           />
+
         </Routes>
       </div>
     </>

@@ -56,6 +56,36 @@ const waitlistSchema = new mongoose.Schema(
             default: "",
         },
 
+        // Set when a manager rejects this waitlist entry
+        // directly (before it was ever matched to a bed).
+        // Mirrors BedReservation's rejectionReason pattern.
+        rejectionReason: {
+            type: String,
+            default: "",
+            validate: {
+                validator: function (v) {
+                    return (
+                        this.status !== "cancelled" ||
+                        !this.rejectedBy ||
+                        (v && v.trim().length > 0)
+                    );
+                },
+                message:
+                    "A rejection reason is required when a manager rejects a waitlist request.",
+            },
+        },
+
+        rejectedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
+
+        rejectedAt: {
+            type: Date,
+            default: null,
+        },
+
         // When the student received the 24-hour priority
         matchedAt: {
             type: Date,

@@ -48,7 +48,6 @@ function Navbar() {
           to="/"
           className="project-title"
         >
-
           <span className="project-title-main">
             Smart Student Mess
           </span>
@@ -60,7 +59,6 @@ function Navbar() {
           <span className="project-title-sub">
             SpaceFit Room Allocation System
           </span>
-
         </Link>
 
 
@@ -170,38 +168,53 @@ function Navbar() {
 
                 {/* =============================================
                     BILLING
+                    HIDDEN FOR ADMIN
                     ============================================= */}
 
-                <Link
-                  to="/billing"
-                  className="nav-box"
-                >
-                  Billing
-                </Link>
+                {user.role !== "admin" && (
+
+                  <Link
+                    to="/billing"
+                    className="nav-box"
+                  >
+                    Billing
+                  </Link>
+
+                )}
 
 
                 {/* =============================================
                     FORECAST
+                    HIDDEN FOR ADMIN
                     ============================================= */}
 
-                <Link
-                  to="/forecast"
-                  className="nav-box"
-                >
-                  Forecast
-                </Link>
+                {user.role !== "admin" && (
+
+                  <Link
+                    to="/forecast"
+                    className="nav-box"
+                  >
+                    Forecast
+                  </Link>
+
+                )}
 
 
                 {/* =============================================
                     FOOD WASTE
+                    HIDDEN FOR ADMIN
                     ============================================= */}
 
-                <Link
-                  to="/food-waste"
-                  className="nav-box"
-                >
-                  Food Waste
-                </Link>
+                {user.role !== "admin" && (
+
+                  <Link
+                    to="/food-waste"
+                    className="nav-box"
+                  >
+                    Food Waste
+                  </Link>
+
+                )}
 
 
                 {/* =============================================
