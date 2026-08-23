@@ -11,6 +11,9 @@ const {
   askReviewQuestion,
   updateComplaintStatus,
   assignComplaint,
+  reviewComplaintDecision,
+  requestSiteInspection,
+  withdrawComplaint,
 } = require("../controllers/complaint.controller");
 
 const { protect } = require("../middleware/auth.middleware");
@@ -86,6 +89,24 @@ router.put(
   "/:id/assign",
   protect,
   assignComplaint
+);
+
+router.put(
+  "/:id/review",
+  protect,
+  reviewComplaintDecision
+);
+
+router.put(
+  "/:id/inspection",
+  protect,
+  requestSiteInspection
+);
+
+router.put(
+  "/:id/withdraw",
+  protect,
+  withdrawComplaint
 );
 
 module.exports = router;

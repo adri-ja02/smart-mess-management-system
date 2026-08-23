@@ -98,28 +98,85 @@ const complaintSchema = new mongoose.Schema(
       ],
       default: "Submitted",
     },
+    reviewDecision: {
+      type: String,
+      enum: [
+        "Valid",
+        "Insufficient Evidence",
+        "Duplicate",
+        "Confirmed False",
+      ],
+      default: null,
+    },
+    credibilityFlags: [
+      {
+        type: String,
+      },
+    ],
+    withdrawalHistory: [
+      {
+        withdrawnAt: {
+          type: Date,
+          default: Date.now,
+        },
+        reason: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
+    inspectionRequest: {
+      requested: {
+        type: Boolean,
+        default: false,
+      },
+
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+
+      note: {
+        type: String,
+        default: "",
+      },
+    },
+    inspectionRequest: {
+      requested: {
+        type: Boolean,
+        default: false,
+      },
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+      note: {
+        type: String,
+        default: "",
+      },
+    },
 
 
 
-        // Added for the Manager Dashboard. A simple name string is
+    // Added for the Manager Dashboard. A simple name string is
     // enough for this demo — if Sadia's Work Order feature later
     // adds a real Technician/Staff model, this can be upgraded to
     // an ObjectId ref without touching the identity-vault design.
     assignedTo: {
-  type: {
-    type: String,
-    enum: ["Plumber", "Technician", "Mechanic", "Other"],
-    default: null,
-  },
-  name: {
-    type: String,
-    default: null,
-  },
-  assignedAt: {
-    type: Date,
-    default: null,
-  },
-},
+      type: {
+        type: String,
+        enum: ["Plumber", "Technician", "Mechanic", "Other"],
+        default: null,
+      },
+      name: {
+        type: String,
+        default: null,
+      },
+      assignedAt: {
+        type: Date,
+        default: null,
+      },
+    },
     timeline: [
       {
         status: { type: String, required: true },

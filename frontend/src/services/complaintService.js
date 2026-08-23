@@ -27,8 +27,18 @@ export const submitComplaint = async (complaintData) => {
 /* ================= FEATURE 2: TOKEN-BASED FOLLOW-UP ================= */
 
 export const trackComplaint = async (token) => {
-  const response = await api.post("/complaints/track", { token });
-  return response.data; // { success, complaint }
+  console.log("Sending token:", token);
+
+  const response = await api.post(
+    "/complaints/track",
+    {
+      token: token.trim()
+    }
+  );
+
+  console.log("Track response:", response.data);
+
+  return response.data;
 };
 
 export const addFollowUp = async (token, note, evidence = []) => {
@@ -87,3 +97,27 @@ export const assignComplaint = async (
 
   return response.data;
 };
+
+// MODULE 3 FUNCTIONS HERE
+export const submitReviewDecision = async (id, decisionData) => {
+  const response = await api.put(
+    `/complaints/${id}/review`,
+    decisionData
+  );
+
+  return response.data;
+};
+
+
+export const requestSiteInspection = async (id) => {
+  const response = await api.put(
+    `/complaints/${id}/inspection`,
+    {}
+  );
+
+  return response.data;
+};
+
+
+
+

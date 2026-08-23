@@ -6,6 +6,7 @@ const Complaint = require("../models/Complaint");
 const ComplaintIdentity = require("../models/ComplaintIdentity");
 const ComplaintToken = require("../models/ComplaintToken");
 const cloudinary = require("../utils/cloudinary");
+const Room = require("../models/Room");
 
 /* =========================================================
    INTERNAL HELPERS
@@ -59,6 +60,145 @@ const findComplaintByRawToken = async (rawToken) => {
 
   return await Complaint.findById(tokenDoc.complaint);
 };
+const runCredibilityCheck = async ({
+  location,
+  category,
+  urgency,
+  description,
+  evidence,
+}) => {
+
+  const flags = [];
+
+
+  // Missing evidence for high severity claims
+  if (
+    (urgency === "High" || urgency === "Emergency") &&
+    (!evidence || evidence.length === 0)
+  ) {
+    flags.push(
+      "Missing evidence for high severity claim"
+    );
+  }
+
+
+  // Location verification
+  const normalizedLocation = String(location || "").trim();
+
+  const roomNumberCandidate = normalizedLocation
+    .replace(/^room\s*/i, "")
+    .trim();
+
+  const roomExists = await Room.findOne({
+    $or: [
+      { roomNumber: normalizedLocation },
+      { roomNumber: roomNumberCandidate },
+      { messLocation: normalizedLocation },
+    ],
+    isArchived: false,
+  });
+
+  if (!roomExists) {
+    flags.push(
+      "Reported location does not match known records"
+    );
+  }
+
+
+  // Duplicate detection
+  const duplicate = await Complaint.findOne({
+    location,
+    category,
+    description: {
+      $regex: description.substring(0, 20),
+      $options: "i",
+    },
+  });
+
+
+  if (duplicate) {
+    flags.push(
+      "Possible duplicate complaint detected"
+    );
+  }
+  // Contradictory description detection
+
+  const previousComplaints = await Complaint.find({
+    location,
+    category,
+  }).limit(10);
+
+
+  const negativeWords = [
+    "not working",
+    "broken",
+    "damaged",
+    "leak",
+    "problem",
+    "issue",
+    "fault",
+  ];
+
+
+  const positiveWords = [
+    "working",
+    "fixed",
+    "normal",
+    "resolved",
+    "no issue",
+  ];
+
+
+  const currentDescription =
+    description.toLowerCase();
+
+
+  for (const oldComplaint of previousComplaints) {
+
+    const oldDescription =
+      oldComplaint.description.toLowerCase();
+
+
+    const oldHasNegative =
+      negativeWords.some((word) =>
+        oldDescription.includes(word)
+      );
+
+
+    const oldHasPositive =
+      positiveWords.some((word) =>
+        oldDescription.includes(word)
+      );
+
+
+    const currentHasNegative =
+      negativeWords.some((word) =>
+        currentDescription.includes(word)
+      );
+
+
+    const currentHasPositive =
+      positiveWords.some((word) =>
+        currentDescription.includes(word)
+      );
+
+
+    if (
+      (oldHasNegative && currentHasPositive) ||
+      (oldHasPositive && currentHasNegative)
+    ) {
+
+      flags.push(
+        "Contradictory description detected"
+      );
+
+      break;
+    }
+  }
+
+
+  return flags;
+};
 
 
 /* =========================================================
@@ -92,6 +232,13 @@ exports.createComplaint = async (req, res) => {
 
     const ticketNumber = await generateTicketNumber();
     const rawToken = generateRawToken();
+    const credibilityFlags = await runCredibilityCheck({
+      location,
+      category,
+      urgency: urgency || "Low",
+      description,
+      evidence: Array.isArray(evidence) ? evidence : [],
+    });
 
     const complaint = await Complaint.create({
       ticketNumber,
@@ -100,6 +247,7 @@ exports.createComplaint = async (req, res) => {
       urgency: urgency || "Low",
       description,
       evidence: Array.isArray(evidence) ? evidence : [],
+      credibilityFlags,
       status: "Submitted",
 
       timeline: [
@@ -170,7 +318,7 @@ exports.uploadComplaintEvidence = async (req, res) => {
             : "image",
       });
 
-      fs.unlink(file.path, () => {});
+      fs.unlink(file.path, () => { });
     }
 
     return res.json({
@@ -381,6 +529,10 @@ const isManagerOrAdmin = (req) => {
       req.user.role === "admin")
   );
 };
+/* =========================================================
+   ADMIN INTEGRITY REVIEW
+========================================================= */
+
 
 
 /* =========================================================
@@ -613,6 +765,25 @@ exports.updateComplaintStatus = async (req, res) => {
         message: "Complaint not found.",
       });
     }
+    // A complaint cannot enter maintenance operations
+    // until the System Administrator marks it Valid.
+    const maintenanceStatuses = [
+      "Assigned",
+      "In Progress",
+      "Repair Completed",
+      "Closed",
+    ];
+
+    if (
+      maintenanceStatuses.includes(status) &&
+      complaint.reviewDecision !== "Valid"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Complaint must be marked Valid by the System Administrator before maintenance operations.",
+      });
+    }
 
     // Prevent updating to the same status
     if (complaint.status === status) {
@@ -718,6 +889,21 @@ exports.assignComplaint = async (req, res) => {
         message: "Complaint not found.",
       });
     }
+    if (complaint.status !== "Valid") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Complaint must be marked Valid before maintenance assignment.",
+      });
+    }
+
+    if (complaint.reviewDecision !== "Valid") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Complaint must be marked Valid before assigning a work order.",
+      });
+    }
 
     // Save assigned worker
     complaint.assignedTo = {
@@ -755,5 +941,235 @@ exports.assignComplaint = async (req, res) => {
     });
   }
 };
+exports.reviewComplaintDecision = async (req, res) => {
+  try {
+
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only System Administrator can review complaints."
+      });
+    }
 
 
+    const { decision, note } = req.body;
+
+
+    const allowedDecisions = [
+      "Valid",
+      "Insufficient Evidence",
+      "Duplicate",
+      "Confirmed False",
+    ];
+
+
+    if (!allowedDecisions.includes(decision)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid review decision."
+      });
+    }
+
+
+    const complaint =
+      await Complaint.findById(req.params.id);
+
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: "Complaint not found."
+      });
+    }
+
+
+    complaint.reviewDecision = decision;
+
+
+    complaint.status = decision;
+
+
+    complaint.timeline.push({
+      status: decision,
+      note:
+        note ||
+        `Complaint reviewed as ${decision}.`
+    });
+
+
+    await complaint.save();
+
+
+    return res.json({
+      success: true,
+      message:
+        "Complaint decision saved successfully.",
+      complaint
+    });
+
+
+  } catch (error) {
+
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+};
+
+/* =========================================================
+   REQUEST DISCREET SITE INSPECTION
+========================================================= */
+
+exports.requestSiteInspection = async (req, res) => {
+  try {
+
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only System Administrator can request site inspection.",
+      });
+    }
+
+
+    const { note } = req.body;
+
+
+    const complaint =
+      await Complaint.findById(req.params.id);
+
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Complaint not found.",
+      });
+    }
+
+
+    complaint.inspectionRequest = {
+      requested: true,
+      requestedAt: new Date(),
+      note: note || "",
+    };
+
+
+    complaint.timeline.push({
+      status: complaint.status,
+      note:
+        "System Administrator requested a discreet site inspection.",
+    });
+
+
+    await complaint.save();
+
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Site inspection request created successfully.",
+      complaint,
+    });
+
+
+  } catch (error) {
+
+    console.log(
+      "REQUEST SITE INSPECTION ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
+/* =========================================================
+   WITHDRAW COMPLAINT
+   Records withdrawal history for credibility checking
+========================================================= */
+
+exports.withdrawComplaint = async (req, res) => {
+  try {
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+
+    const { reason } = req.body;
+
+
+    const complaint =
+      await Complaint.findById(req.params.id);
+
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: "Complaint not found.",
+      });
+    }
+
+
+    complaint.withdrawalHistory.push({
+      reason: reason || "",
+      withdrawnAt: new Date(),
+    });
+
+
+    // Add credibility flag for repeated withdrawals
+
+    if (complaint.withdrawalHistory.length > 1) {
+
+      complaint.credibilityFlags.push(
+        "Repeated complaint withdrawal detected"
+      );
+
+    }
+
+
+    complaint.timeline.push({
+      status: complaint.status,
+      note:
+        "Complaint withdrawn by resident.",
+    });
+
+
+    await complaint.save();
+
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Complaint withdrawal recorded successfully.",
+      complaint,
+    });
+
+
+  } catch (error) {
+
+    console.log(
+      "WITHDRAW COMPLAINT ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};

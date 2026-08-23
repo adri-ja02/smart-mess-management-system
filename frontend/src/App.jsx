@@ -30,6 +30,8 @@ import ComplaintSubmitted from "./pages/ComplaintSubmitted";
 import TrackComplaint from "./pages/TrackComplaint";
 import ManagerComplaintDashboard from "./pages/ManagerComplaintDashboard";
 import ManagerComplaintDetail from "./pages/ManagerComplaintDetail";
+import AdminComplaintReview from "./pages/AdminComplaintReview";
+import AdminComplaintList from "./pages/AdminComplaintList";
 
 function App() {
   return (
@@ -244,8 +246,43 @@ function App() {
 
           <Route path="/complaints/track" element={<TrackComplaint />} />
 
-          <Route path="/manager/complaints" element={<ManagerComplaintDashboard />} />
-          <Route path="/manager/complaints/:id" element={<ManagerComplaintDetail />} />
+          <Route
+            path="/manager/complaints"
+            element={
+              <ProtectedRoute>
+                <ManagerComplaintDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+
+          <Route
+            path="/manager/complaints/:id"
+            element={
+              <ProtectedRoute>
+                <ManagerComplaintDetail />
+              </ProtectedRoute>
+            }
+          />
+          {/* MALIHA MODULE 3 - INDEPENDENT COMPLAINT REVIEW */}
+
+          <Route
+            path="/admin/complaints"
+            element={
+              <ProtectedRoute role="admin">
+                <AdminComplaintList />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/complaints/:id/review"
+            element={
+              <ProtectedRoute role="admin">
+                <AdminComplaintReview />
+              </ProtectedRoute>
+            }
+          />
 
           {/* 404 */}
           <Route

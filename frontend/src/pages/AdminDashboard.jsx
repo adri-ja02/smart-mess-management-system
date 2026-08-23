@@ -204,7 +204,38 @@ function AdminDashboard() {
 
           </div>
 
+          {/* Complaint Integrity Review */}
 
+          <div className="card shadow mb-4">
+
+            <div className="card-header bg-danger text-white">
+              <h4 className="mb-0">
+                Complaint Integrity Review
+              </h4>
+            </div>
+
+
+            <div className="card-body">
+
+              <p>
+                Review complaints for credibility screening,
+                duplicate detection, and final decision.
+              </p>
+
+
+              <button
+                className="btn btn-primary"
+                onClick={() =>
+                  navigate("/admin/complaints")
+                }
+              >
+                View Complaints For Review
+              </button>
+
+
+            </div>
+
+          </div>
           {/* All Users */}
 
 
