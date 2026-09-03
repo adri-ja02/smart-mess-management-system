@@ -40,6 +40,9 @@ function ManagerComplaintDetail() {
   const [loading, setLoading] =
     useState(true);
 
+  const [assigning, setAssigning] =
+    useState(false);
+
   const [workerType, setWorkerType] =
     useState("");
 
@@ -121,54 +124,114 @@ function ManagerComplaintDetail() {
   };
 
   /* =========================================================
-     LOAD
+     FORMAT DATE FOR DATETIME-LOCAL
+  ========================================================= */
+
+  const formatDateForInput = (
+    value
+  ) => {
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    const year =
+      date.getFullYear();
+
+    const month = String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      date.getDate()
+    ).padStart(2, "0");
+
+    const hours = String(
+      date.getHours()
+    ).padStart(2, "0");
+
+    const minutes = String(
+      date.getMinutes()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  /* =========================================================
+     LOAD COMPLAINT
+     
+     IMPORTANT:
+     This loads only once when the ID changes.
+     
+     There is NO 10-second polling because polling was
+     overwriting the assignment form while the manager
+     was typing.
   ========================================================= */
 
   const load = async () => {
     try {
+      setLoading(true);
+
       const data =
         await getComplaintByIdForManager(
           id
         );
 
+      const loadedComplaint =
+        data.complaint;
+
       setComplaint(
-        data.complaint
+        loadedComplaint
       );
 
       setStatusChoice(
-        data.complaint.status
+        loadedComplaint.status || ""
       );
 
-      setWorkerType(
-        data.complaint
-          .assignedTo?.type ||
-        ""
-      );
-
-      setWorkerName(
-        data.complaint
-          .assignedTo?.name ||
-        ""
-      );
-
+      /*
+       * Populate worker fields only from
+       * already-saved backend data.
+       */
       if (
-        data.complaint
-          .targetCompletionDate
+        loadedComplaint.assignedTo
+      ) {
+        setWorkerType(
+          loadedComplaint.assignedTo
+            ?.type || ""
+        );
+
+        setWorkerName(
+          loadedComplaint.assignedTo
+            ?.name || ""
+        );
+      } else {
+        setWorkerType("");
+        setWorkerName("");
+      }
+
+      /*
+       * Populate target date only if
+       * it already exists.
+       */
+      if (
+        loadedComplaint.targetCompletionDate
       ) {
         setTargetDate(
-          new Date(
-            data.complaint
+          formatDateForInput(
+            loadedComplaint
               .targetCompletionDate
           )
-            .toISOString()
-            .slice(
-              0,
-              16
-            )
         );
       } else {
         setTargetDate("");
       }
+
+      setError("");
     } catch (err) {
       setError(
         err.response?.data
@@ -182,29 +245,10 @@ function ManagerComplaintDetail() {
 
   useEffect(() => {
     load();
-
-    const interval =
-      setInterval(
-        load,
-        10000
-      );
-
-    return () =>
-      clearInterval(
-        interval
-      );
   }, [id]);
 
   /* =========================================================
      ASSIGN WORKER
-     
-     Manager provides only:
-     - Worker Type
-     - Worker Name
-     - Target Completion Date
-     
-     Priority is NOT included because it is
-     already set by the resident.
   ========================================================= */
 
   const handleAssign = async (
@@ -212,36 +256,98 @@ function ManagerComplaintDetail() {
   ) => {
     e.preventDefault();
 
-    if (isActionBlocked) {
+    if (
+      isActionBlocked ||
+      assigning
+    ) {
       return;
     }
 
-    if (
-      !workerType ||
-      !workerName.trim() ||
-      !targetDate
-    ) {
+    setError("");
+
+    const cleanWorkerName =
+      workerName.trim();
+
+    if (!workerType) {
       setError(
-        "Worker type, worker name, and target completion date are required."
+        "Please select a worker type."
+      );
+      return;
+    }
+
+    if (!cleanWorkerName) {
+      setError(
+        "Please enter the worker name."
+      );
+      return;
+    }
+
+    if (!targetDate) {
+      setError(
+        "Please select a target completion date."
       );
       return;
     }
 
     try {
+      setAssigning(true);
+
       const data =
         await assignComplaint(
           id,
           workerType,
-          workerName.trim(),
+          cleanWorkerName,
           targetDate
         );
 
+      const updatedComplaint =
+        data.complaint;
+
+      /*
+       * Update complaint.
+       */
       setComplaint(
-        data.complaint
+        updatedComplaint
       );
 
+      /*
+       * Keep the values in the form.
+       */
+      setWorkerType(
+        updatedComplaint
+          .assignedTo?.type ||
+        workerType
+      );
+
+      setWorkerName(
+        updatedComplaint
+          .assignedTo?.name ||
+        cleanWorkerName
+      );
+
+      if (
+        updatedComplaint
+          .targetCompletionDate
+      ) {
+        setTargetDate(
+          formatDateForInput(
+            updatedComplaint
+              .targetCompletionDate
+          )
+        );
+      } else {
+        /*
+         * If backend doesn't return the
+         * date, keep what the manager entered.
+         */
+        setTargetDate(
+          targetDate
+        );
+      }
+
       setStatusChoice(
-        data.complaint.status
+        updatedComplaint.status ||
+        ""
       );
 
       setError("");
@@ -251,6 +357,8 @@ function ManagerComplaintDetail() {
           ?.message ||
         "Could not assign work order."
       );
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -333,9 +441,7 @@ function ManagerComplaintDetail() {
           data.complaint
         );
 
-        setCompletionFiles(
-          []
-        );
+        setCompletionFiles([]);
 
         setError("");
       } catch (err) {
@@ -387,12 +493,9 @@ function ManagerComplaintDetail() {
 
         <h4>
           Work Order #
-          {
-            complaint.ticketNumber
-          }
+          {" "}
+          {complaint.ticketNumber}
         </h4>
-
-        {/* VALID */}
 
         <div className="alert alert-success">
           This complaint was already marked{" "}
@@ -427,30 +530,22 @@ function ManagerComplaintDetail() {
               <strong>
                 Ticket:
               </strong>{" "}
-              {
-                complaint.ticketNumber
-              }
+              {complaint.ticketNumber}
             </p>
 
             <p>
               <strong>
                 Location:
               </strong>{" "}
-              {
-                complaint.location
-              }
+              {complaint.location}
             </p>
 
             <p>
               <strong>
                 Category:
               </strong>{" "}
-              {
-                complaint.category
-              }
+              {complaint.category}
             </p>
-
-            {/* RESIDENT-SET PRIORITY */}
 
             <p>
               <strong>
@@ -485,13 +580,13 @@ function ManagerComplaintDetail() {
               </strong>{" "}
 
               <span
-                className={getStatusBadgeClass(
-                  complaint.status
-                )}
-              >
-                {
-                  complaint.status
+                className={
+                  getStatusBadgeClass(
+                    complaint.status
+                  )
                 }
+              >
+                {complaint.status}
               </span>
             </p>
 
@@ -535,9 +630,7 @@ function ManagerComplaintDetail() {
             </h6>
 
             <p>
-              {
-                complaint.description
-              }
+              {complaint.description}
             </p>
 
           </div>
@@ -600,7 +693,8 @@ function ManagerComplaintDetail() {
 
         {/* COMPLETION EVIDENCE */}
 
-        {complaint.completionEvidence
+        {complaint
+          .completionEvidence
           ?.length > 0 && (
           <div className="card mb-3 border-success">
             <div className="card-body">
@@ -611,41 +705,43 @@ function ManagerComplaintDetail() {
 
               <div className="row">
 
-                {complaint.completionEvidence.map(
-                  (
-                    item,
-                    index
-                  ) => (
-                    <div
-                      className="col-md-6 mb-3"
-                      key={
-                        item.public_id ||
-                        index
-                      }
-                    >
+                {complaint
+                  .completionEvidence
+                  .map(
+                    (
+                      item,
+                      index
+                    ) => (
+                      <div
+                        className="col-md-6 mb-3"
+                        key={
+                          item.public_id ||
+                          index
+                        }
+                      >
 
-                      {item.type ===
-                      "video" ? (
-                        <video
-                          src={
-                            item.url
-                          }
-                          controls
-                          className="w-100 rounded"
-                        />
-                      ) : (
-                        <img
-                          src={
-                            item.url
-                          }
-                          alt="Repair completion evidence"
-                          className="img-fluid rounded"
-                        />
-                      )}
+                        {item.type ===
+                        "video" ? (
+                          <video
+                            src={
+                              item.url
+                            }
+                            controls
+                            className="w-100 rounded"
+                          />
+                        ) : (
+                          <img
+                            src={
+                              item.url
+                            }
+                            alt="Repair completion evidence"
+                            className="img-fluid rounded"
+                          />
+                        )}
 
-                    </div>
-                  )
-                )}
+                      </div>
+                    )
+                  )}
 
               </div>
 
@@ -703,7 +799,8 @@ function ManagerComplaintDetail() {
                   )
                 }
                 disabled={
-                  isActionBlocked
+                  isActionBlocked ||
+                  assigning
                 }
               >
 
@@ -731,7 +828,9 @@ function ManagerComplaintDetail() {
               </label>
 
               <input
+                type="text"
                 className="form-control mb-3"
+                placeholder="Enter worker name"
                 value={
                   workerName
                 }
@@ -741,7 +840,8 @@ function ManagerComplaintDetail() {
                   )
                 }
                 disabled={
-                  isActionBlocked
+                  isActionBlocked ||
+                  assigning
                 }
               />
 
@@ -763,7 +863,8 @@ function ManagerComplaintDetail() {
                   )
                 }
                 disabled={
-                  isActionBlocked
+                  isActionBlocked ||
+                  assigning
                 }
               />
 
@@ -773,10 +874,16 @@ function ManagerComplaintDetail() {
                 type="submit"
                 className="btn btn-primary w-100"
                 disabled={
-                  isActionBlocked
+                  isActionBlocked ||
+                  assigning ||
+                  !workerType ||
+                  !workerName.trim() ||
+                  !targetDate
                 }
               >
-                Assign Work Order
+                {assigning
+                  ? "Assigning..."
+                  : "Assign Work Order"}
               </button>
 
             </form>
@@ -826,20 +933,22 @@ function ManagerComplaintDetail() {
                   }
                 </option>
 
-                {STATUS_OPTIONS.filter(
-                  (status) =>
-                    status !==
-                    complaint.status
-                ).map(
-                  (status) => (
-                    <option
-                      key={status}
-                      value={status}
-                    >
-                      {status}
-                    </option>
+                {STATUS_OPTIONS
+                  .filter(
+                    (status) =>
+                      status !==
+                      complaint.status
                   )
-                )}
+                  .map(
+                    (status) => (
+                      <option
+                        key={status}
+                        value={status}
+                      >
+                        {status}
+                      </option>
+                    )
+                  )}
 
               </select>
 

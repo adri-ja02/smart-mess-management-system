@@ -11,6 +11,9 @@ function PendingReservations() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
+  // Selected reservation for View Submitted Info modal
+  const [detailsReservation, setDetailsReservation] = useState(null);
+
   useEffect(() => {
     loadReservations();
   }, []);
@@ -164,9 +167,7 @@ function PendingReservations() {
   if (loading) {
     return (
       <div className="container mt-5">
-
         <div className="text-center">
-
           <div
             className="spinner-border"
             role="status"
@@ -175,9 +176,7 @@ function PendingReservations() {
           <p className="mt-2">
             Loading pending reservations...
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -194,9 +193,7 @@ function PendingReservations() {
       ===================================================== */}
 
       <div className="d-flex justify-content-between align-items-center mb-4">
-
         <div>
-
           <h2 className="mb-1">
             Pending Reservations
           </h2>
@@ -205,7 +202,6 @@ function PendingReservations() {
             Review and manage pending student
             reservation requests.
           </p>
-
         </div>
 
         <button
@@ -215,7 +211,6 @@ function PendingReservations() {
         >
           Refresh
         </button>
-
       </div>
 
       {/* =====================================================
@@ -223,19 +218,19 @@ function PendingReservations() {
       ===================================================== */}
 
       {reservations.length === 0 ? (
-
         <div className="alert alert-info">
           No pending reservations.
         </div>
-
       ) : (
-
         <div className="table-responsive">
 
           <table className="table table-bordered table-hover align-middle">
 
-            <thead className="table-dark">
+            {/* =================================================
+                TABLE HEADER
+            ================================================= */}
 
+            <thead className="table-dark">
               <tr>
 
                 <th>
@@ -267,27 +262,33 @@ function PendingReservations() {
                 </th>
 
                 <th>
+                  View Details
+                </th>
+
+                <th>
                   Action
                 </th>
 
               </tr>
-
             </thead>
+
+            {/* =================================================
+                TABLE BODY
+            ================================================= */}
 
             <tbody>
 
               {reservations.map((r) => {
-
-                const expired =
-                  isHoldExpired(r);
+                const expired = isHoldExpired(r);
 
                 return (
                   <tr key={r._id}>
 
-                    {/* STUDENT */}
+                    {/* =================================================
+                        STUDENT
+                    ================================================= */}
 
                     <td>
-
                       <div className="fw-semibold">
                         {r.student?.name ||
                           r.applicantDetails?.fullName ||
@@ -299,30 +300,37 @@ function PendingReservations() {
                           r.applicantDetails?.email ||
                           "-"}
                       </small>
-
                     </td>
 
-                    {/* BUILDING */}
+                    {/* =================================================
+                        BUILDING
+                    ================================================= */}
 
                     <td>
                       {r.room?.building?.name ||
                         "-"}
                     </td>
 
-                    {/* ROOM */}
+                    {/* =================================================
+                        ROOM
+                    ================================================= */}
 
                     <td>
                       {r.room?.roomNumber ||
                         "-"}
                     </td>
 
-                    {/* BED */}
+                    {/* =================================================
+                        BED
+                    ================================================= */}
 
                     <td>
                       {r.bedNumber || "-"}
                     </td>
 
-                    {/* STATUS */}
+                    {/* =================================================
+                        STATUS
+                    ================================================= */}
 
                     <td>
                       <span className="badge bg-warning text-dark">
@@ -330,15 +338,17 @@ function PendingReservations() {
                       </span>
                     </td>
 
-                    {/* REQUESTED */}
+                    {/* =================================================
+                        REQUESTED
+                    ================================================= */}
 
                     <td>
-                      {formatDate(
-                        r.createdAt
-                      )}
+                      {formatDate(r.createdAt)}
                     </td>
 
-                    {/* HOLD EXPIRES */}
+                    {/* =================================================
+                        HOLD EXPIRES
+                    ================================================= */}
 
                     <td
                       className={
@@ -347,7 +357,6 @@ function PendingReservations() {
                           : ""
                       }
                     >
-
                       {formatDate(
                         r.holdExpiresAt
                       )}
@@ -357,10 +366,27 @@ function PendingReservations() {
                           (expired)
                         </span>
                       )}
-
                     </td>
 
-                    {/* ACTION */}
+                    {/* =================================================
+                        VIEW SUBMITTED INFO
+                    ================================================= */}
+
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() =>
+                          setDetailsReservation(r)
+                        }
+                      >
+                        View Details
+                      </button>
+                    </td>
+
+                    {/* =================================================
+                        ACTION
+                    ================================================= */}
 
                     <td>
 
@@ -372,9 +398,7 @@ function PendingReservations() {
                           expired
                         }
                         onClick={() =>
-                          handleApprove(
-                            r._id
-                          )
+                          handleApprove(r._id)
                         }
                       >
                         {processingId === r._id
@@ -390,9 +414,7 @@ function PendingReservations() {
                           expired
                         }
                         onClick={() =>
-                          handleReject(
-                            r._id
-                          )
+                          handleReject(r._id)
                         }
                       >
                         {processingId === r._id
@@ -411,7 +433,159 @@ function PendingReservations() {
           </table>
 
         </div>
+      )}
 
+      {/* =====================================================
+          VIEW SUBMITTED INFO MODAL
+      ===================================================== */}
+
+      {detailsReservation && (
+        <div
+          className="modal d-block"
+          tabIndex="-1"
+          role="dialog"
+          style={{
+            background: "rgba(0,0,0,0.5)",
+          }}
+        >
+          <div
+            className="modal-dialog modal-dialog-scrollable"
+            role="document"
+          >
+            <div className="modal-content">
+
+              {/* =================================================
+                  MODAL HEADER
+              ================================================= */}
+
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Submitted Information
+                </h5>
+
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={() =>
+                    setDetailsReservation(null)
+                  }
+                ></button>
+              </div>
+
+              {/* =================================================
+                  MODAL BODY
+              ================================================= */}
+
+              <div className="modal-body">
+
+                {(() => {
+                  const details =
+                    detailsReservation.applicantDetails;
+
+                  if (!details) {
+                    return (
+                      <p className="text-muted mb-0">
+                        No details were submitted
+                        with this request.
+                      </p>
+                    );
+                  }
+
+                  const rows = [
+                    [
+                      "Full Name",
+                      details.fullName,
+                    ],
+                    [
+                      "Email",
+                      details.email,
+                    ],
+                    [
+                      "Phone",
+                      details.phone,
+                    ],
+                    [
+                      "Address",
+                      details.address,
+                    ],
+                    [
+                      "Institution",
+                      details.institutionName,
+                    ],
+                    [
+                      "Student ID",
+                      details.studentId,
+                    ],
+                    [
+                      "Blood Group",
+                      details.bloodGroup,
+                    ],
+                    [
+                      "Father's Name",
+                      details.fatherName,
+                    ],
+                    [
+                      "Father's Phone",
+                      details.fatherPhone,
+                    ],
+                    [
+                      "Mother's Name",
+                      details.motherName,
+                    ],
+                    [
+                      "Mother's Phone",
+                      details.motherPhone,
+                    ],
+                  ];
+
+                  return (
+                    <table className="table table-sm table-borderless mb-0">
+                      <tbody>
+                        {rows.map(
+                          ([label, value]) => (
+                            <tr key={label}>
+                              <th
+                                className="text-muted"
+                                style={{
+                                  width: "40%",
+                                }}
+                              >
+                                {label}
+                              </th>
+
+                              <td>
+                                {value || "-"}
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+
+              </div>
+
+              {/* =================================================
+                  MODAL FOOTER
+              ================================================= */}
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() =>
+                    setDetailsReservation(null)
+                  }
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

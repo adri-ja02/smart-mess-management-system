@@ -196,6 +196,19 @@ const sanitizeForManager = (
   delete data.reviewQuestions;
   delete data.additionalNotes;
 
+  /*
+   * The resident's reason for reopening is confidential,
+   * same as additionalNotes/reviewQuestions. The manager
+   * still needs to know a reopen happened, so we keep the
+   * rest of reopenReview (requested/decision/dates/cycle).
+   */
+  if (data.reopenReview) {
+    data.reopenReview = {
+      ...data.reopenReview,
+      reason: undefined,
+    };
+  }
+
   if (data.repairVerification) {
     data.repairVerification = {
       status:
@@ -826,10 +839,38 @@ exports.getComplaintsForAdmin =
           decision;
       }
 
+      /*
+       * Complaints that a resident just reopened (waiting
+       * on the admin's Approve/Reject decision) need
+       * urgent attention, so they float to the very top of
+       * the list.
+       *
+       * IMPORTANT: only "requested" is used to decide that
+       * top-priority group — NOT "requestedAt". A complaint
+       * that was reopened in the past but has since been
+       * approved and moved on to Assigned / In Progress /
+       * Repair Completed / Closed still has a real
+       * `requestedAt` timestamp forever, while a brand-new
+       * complaint has `requestedAt: null`. Including
+       * requestedAt in the sort would rank real dates above
+       * nulls and keep old, already-resolved reopened
+       * complaints pinned above brand-new complaints, which
+       * is exactly what we don't want.
+       *
+       * So: pending reopen requests first (requested: true),
+       * then everything else — new complaints and
+       * resolved/progressed reopened complaints alike —
+       * purely by newest-created-first.
+       *
+       * MongoDB sorts booleans false < true, so sorting
+       * "reopenReview.requested" descending puts
+       * requested: true documents first.
+       */
       const complaints =
         await Complaint.find(
           filter
         ).sort({
+          "reopenReview.requested": -1,
           createdAt: -1,
         });
 
@@ -1190,6 +1231,15 @@ exports.getComplaintsForManager =
       const filter = {
         reviewDecision: "Valid",
         concernsManager: false,
+        /*
+         * Block complaints with a pending reopen request.
+         * Once the admin decides (approved or rejected),
+         * reopenReview.requested is cleared to false, so
+         * this condition no longer excludes them.
+         */
+        "reopenReview.requested": {
+          $ne: true,
+        },
       };
 
       if (category) {
@@ -1291,6 +1341,17 @@ exports.getComplaintByIdForManager =
           success: false,
           message:
             "This complaint is not available to the Mess Manager.",
+        });
+      }
+
+      if (
+        complaint.reopenReview
+          ?.requested
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "The resident reopened this complaint. It is pending System Administrator review and is not yet available to the Mess Manager.",
         });
       }
 
@@ -2193,11 +2254,38 @@ exports.verifyRepair = async (
       complaint.status =
         "Reopened";
 
+      /*
+       * A reopen always starts a fresh admin review cycle.
+       * The Mess Manager is blocked from this complaint
+       * until the System Administrator approves the
+       * reopening again (see getComplaintsForManager /
+       * getComplaintByIdForManager).
+       */
+      complaint.reopenReview = {
+        requested: true,
+        requestedAt: new Date(),
+        reason:
+          comment?.trim() || "",
+        decision: null,
+        reviewedAt: null,
+        reviewNote: "",
+        cycle:
+          (complaint.reopenReview
+            ?.cycle || 0) + 1,
+      };
+
       complaint.timeline.push({
         status: "Reopened",
         note:
           "Resident reopened the complaint using the private token because the issue was not fully resolved.",
         confidential: true,
+      });
+
+      complaint.timeline.push({
+        status: "Reopened",
+        note:
+          "Reopening is pending System Administrator review before the Mess Manager can access it again.",
+        confidential: false,
       });
     }
 
@@ -2376,6 +2464,33 @@ exports.reviewComplaintDecision =
         });
       }
 
+      /*
+       * Once a reopening has been approved for this
+       * complaint, approving it already counts as the
+       * Valid decision (see reviewReopenRequest, which
+       * also re-affirms reviewDecision = "Valid"). The
+       * admin cannot select Valid again for the same
+       * complaint. Every other final decision (Insufficient
+       * Evidence / Duplicate / Confirmed False) still works
+       * normally, for both normal complaints and
+       * manager-concern complaints.
+       */
+      if (
+        decision === "Valid" &&
+        complaint.status ===
+          "Reopened" &&
+        !complaint.reopenReview
+          ?.requested &&
+        complaint.reopenReview
+          ?.decision === "approved"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This complaint's reopening was already approved, which counts as Valid. The Valid decision cannot be set again.",
+        });
+      }
+
       complaint.reviewDecision =
         decision;
 
@@ -2399,6 +2514,143 @@ exports.reviewComplaintDecision =
         complaint,
       });
     } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+
+/* =========================================================
+   ADMIN - REVIEW REOPEN REQUEST
+ *
+ * Separate from reviewComplaintDecision/reviewDecision,
+ * which belongs to the ORIGINAL complaint integrity review.
+ *
+ * Resident reopened -> reopenReview.requested = true
+ * Admin approves     -> Mess Manager can access it again
+ * Admin rejects       -> complaint goes back to Closed
+========================================================= */
+
+exports.reviewReopenRequest =
+  async (req, res) => {
+    try {
+      if (!isAdmin(req)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only System Administrator can review a reopened complaint.",
+        });
+      }
+
+      const {
+        decision,
+        note,
+      } = req.body;
+
+      if (
+        decision !== "approved" &&
+        decision !== "rejected"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid reopen review decision.",
+        });
+      }
+
+      const complaint =
+        await Complaint.findById(
+          req.params.id
+        );
+
+      if (!complaint) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Complaint not found.",
+        });
+      }
+
+      if (
+        !complaint.reopenReview
+          ?.requested
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This complaint has no pending reopen request.",
+        });
+      }
+
+      complaint.reopenReview.decision =
+        decision;
+
+      complaint.reopenReview.reviewedAt =
+        new Date();
+
+      complaint.reopenReview.reviewNote =
+        note?.trim() || "";
+
+      /*
+       * Resolved either way — this stops the pending
+       * reopen request from blocking the Mess Manager
+       * or the general complaint lists.
+       */
+      complaint.reopenReview.requested =
+        false;
+
+      if (decision === "approved") {
+        /*
+         * Approving the reopening carries the same weight
+         * as the original Valid decision — it re-affirms
+         * reviewDecision = "Valid" so downstream logic
+         * (Mess Manager visibility for normal complaints,
+         * Authorized Alternative assignment for
+         * manager-concern complaints) works exactly the
+         * same way it did the first time Valid was
+         * selected. The admin does not need to, and
+         * cannot, press Valid again (see
+         * reviewComplaintDecision).
+         */
+        complaint.reviewDecision =
+          "Valid";
+
+        complaint.timeline.push({
+          status: "Reopened",
+          note:
+            note?.trim() ||
+            "System Administrator approved the reopening. The Mess Manager can access and progress this complaint again.",
+          confidential: false,
+        });
+      } else {
+        complaint.status = "Closed";
+
+        complaint.timeline.push({
+          status: "Closed",
+          note:
+            note?.trim() ||
+            "System Administrator rejected the reopening. The complaint remains closed.",
+          confidential: false,
+        });
+      }
+
+      await complaint.save();
+
+      return res.json({
+        success: true,
+        message:
+          decision === "approved"
+            ? "Reopening approved. The Mess Manager can access this complaint again."
+            : "Reopening rejected. The complaint remains closed.",
+        complaint,
+      });
+    } catch (error) {
+      console.log(
+        "REVIEW REOPEN REQUEST ERROR:",
+        error
+      );
+
       return res.status(500).json({
         success: false,
         message: error.message,
@@ -2462,89 +2714,6 @@ exports.requestSiteInspection =
     } catch (error) {
       console.log(
         "REQUEST SITE INSPECTION ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
-
-/* =========================================================
-   WITHDRAW COMPLAINT
-========================================================= */
-
-exports.withdrawComplaint =
-  async (req, res) => {
-    try {
-      if (
-        !req.user ||
-        !req.user.id
-      ) {
-        return res.status(401).json({
-          success: false,
-          message:
-            "Authentication required.",
-        });
-      }
-
-      const {
-        reason,
-      } = req.body;
-
-      const complaint =
-        await Complaint.findById(
-          req.params.id
-        );
-
-      if (!complaint) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Complaint not found.",
-        });
-      }
-
-      complaint.withdrawalHistory.push(
-        {
-          reason:
-            reason || "",
-          withdrawnAt:
-            new Date(),
-        }
-      );
-
-      if (
-        complaint
-          .withdrawalHistory
-          .length > 1
-      ) {
-        complaint.credibilityFlags.push(
-          "Repeated complaint withdrawal detected"
-        );
-      }
-
-      complaint.timeline.push({
-        status:
-          complaint.status,
-        note:
-          "Complaint withdrawal recorded.",
-        confidential: true,
-      });
-
-      await complaint.save();
-
-      return res.json({
-        success: true,
-        message:
-          "Complaint withdrawal recorded successfully.",
-        complaint,
-      });
-    } catch (error) {
-      console.log(
-        "WITHDRAW COMPLAINT ERROR:",
         error
       );
 
@@ -2713,8 +2882,7 @@ exports.getComplaintAnalytics =
             c.targetCompletionDate &&
             new Date(
               c.targetCompletionDate
-            ) <
-              new Date() &&
+            ) < new Date() &&
             ![
               "Closed",
               "Confirmed False",

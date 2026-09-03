@@ -1,15 +1,10 @@
 import {
-  useEffect,
   useState,
 } from "react";
 
 import {
   submitComplaint,
 } from "../services/complaintService";
-
-import {
-  getMyReservations,
-} from "../services/reservationService";
 
 import EvidenceUpload from "./EvidenceUpload";
 
@@ -53,65 +48,8 @@ function ComplaintForm({
     useState(false);
 
 
-  const [loadingRoom, setLoadingRoom] =
-    useState(true);
-
-
   const [error, setError] =
     useState("");
-
-
-  /* =====================================================
-     LOAD CURRENT APPROVED ROOM
-  ===================================================== */
-
-  useEffect(() => {
-    const loadRoom =
-      async () => {
-        try {
-          setLoadingRoom(true);
-
-          const response =
-            await getMyReservations();
-
-          const reservations =
-            response.reservations ||
-            [];
-
-          const approved =
-            reservations.find(
-              (reservation) =>
-                reservation.status ===
-                  "approved" &&
-                reservation.room
-                  ?.roomNumber
-            );
-
-          setForm((prev) => ({
-            ...prev,
-
-            location: approved
-              ? `Room ${approved.room.roomNumber}`
-              : "",
-          }));
-
-        } catch (err) {
-          console.error(
-            "LOAD ROOM ERROR:",
-            err
-          );
-
-          setError(
-            "Could not load your current room."
-          );
-
-        } finally {
-          setLoadingRoom(false);
-        }
-      };
-
-    loadRoom();
-  }, []);
 
 
   /* =====================================================
@@ -161,23 +99,30 @@ function ComplaintForm({
     async (e) => {
       e.preventDefault();
 
-      if (!form.location) {
+      const trimmedLocation =
+        form.location.trim();
+
+      const trimmedDescription =
+        form.description.trim();
+
+
+      if (!trimmedLocation) {
         setError(
-          "Your approved room could not be found."
+          "Please enter the complaint location or room."
         );
 
         return;
       }
 
-      if (
-        !form.description.trim()
-      ) {
+
+      if (!trimmedDescription) {
         setError(
           "Please describe the problem."
         );
 
         return;
       }
+
 
       setError("");
       setSubmitting(true);
@@ -186,6 +131,13 @@ function ComplaintForm({
         const data =
           await submitComplaint({
             ...form,
+
+            location:
+              trimmedLocation,
+
+            description:
+              trimmedDescription,
+
             evidence,
           });
 
@@ -349,8 +301,11 @@ function ComplaintForm({
 
             <div className="col-md-4 mb-3">
 
-              <label className="form-label fw-semibold">
-                Location
+              <label
+                className="form-label fw-semibold"
+                htmlFor="complaintLocation"
+              >
+                Location / Room
               </label>
 
               <div className="input-group">
@@ -360,25 +315,25 @@ function ComplaintForm({
                 </span>
 
                 <input
+                  id="complaintLocation"
+                  name="location"
+                  type="text"
                   className="form-control"
                   value={
-                    loadingRoom
-                      ? "Loading..."
-                      : form.location ||
-                        "No approved room found"
+                    form.location
                   }
-                  readOnly
-                  disabled={
-                    loadingRoom ||
-                    !form.location
+                  onChange={
+                    handleChange
                   }
+                  placeholder="e.g. Room 203"
+                  maxLength={200}
                 />
 
               </div>
 
               <div className="form-text">
-                Your current approved room is used
-                automatically.
+                Enter the room number or exact location
+                where the problem occurred.
               </div>
 
             </div>
@@ -543,10 +498,6 @@ function ComplaintForm({
 
           <div className="d-flex align-items-start">
 
-            {/* =========================================
-                CHECKBOX
-            ========================================= */}
-
             <div
               className="form-check me-3"
               onClick={(e) =>
@@ -576,10 +527,6 @@ function ComplaintForm({
             </div>
 
 
-            {/* =========================================
-                CONTENT
-            ========================================= */}
-
             <div className="flex-grow-1">
 
               <label
@@ -602,10 +549,6 @@ function ComplaintForm({
                 authorized alternative.
               </p>
 
-
-              {/* =======================================
-                  SELECTED INFORMATION
-              ======================================= */}
 
               {form.concernsManager && (
 
@@ -690,8 +633,8 @@ function ComplaintForm({
           className="btn btn-primary px-4 py-2"
           disabled={
             submitting ||
-            loadingRoom ||
-            !form.location
+            !form.location.trim() ||
+            !form.description.trim()
           }
         >
 

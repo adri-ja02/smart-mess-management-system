@@ -44,6 +44,19 @@ const getTimelineDisplayStatus = (complaint) => {
   }
 
   /*
+   * A reopened complaint had already reached Repair
+   * Completed before the resident reopened it, so the
+   * progress bar keeps that stage reached/current. The
+   * "Reopened" state itself (pending review vs. approved)
+   * is communicated separately via the badge and the
+   * dedicated Reopened card below, using the actual
+   * complaint.status / reopenReview values.
+   */
+  if (complaint.status === "Reopened") {
+    return "Repair Completed";
+  }
+
+  /*
    * Once the admin has assigned an authorized alternative,
    * the backend changes status to Assigned.
    */
@@ -112,6 +125,84 @@ function ComplaintTimeline({
 
 
   /*
+   * =========================================================
+   * REOPENED
+   * =========================================================
+   *
+   * complaint.status stays "Reopened" from the moment the
+   * resident reopens it until the System Administrator
+   * approves it (Mess Manager resumes work) or rejects it
+   * (complaint.status becomes "Closed", handled by the
+   * normal stages above — no special case needed for that).
+   */
+  const isReopened =
+    complaint.status === "Reopened";
+
+  const reopenPending = Boolean(
+    complaint.reopenReview?.requested
+  );
+
+  /*
+   * The note the admin left when approving/rejecting is
+   * pushed onto complaint.timeline with status "Reopened".
+   * trackComplaint() returns the full timeline to the
+   * resident (confidential only hides things from the Mess
+   * Manager, not from the resident), so the most recent
+   * non-confidential "Reopened" entry is always the latest
+   * thing the admin wants the resident to see - starting
+   * with "pending review", then replaced by the admin's
+   * actual note once they Approve/Reject.
+   */
+  const reopenTimelineEntries = Array.isArray(
+    complaint.timeline
+  )
+    ? complaint.timeline.filter(
+        (item) =>
+          item.status === "Reopened" &&
+          !item.confidential
+      )
+    : [];
+
+  const latestReopenNote =
+    reopenTimelineEntries.length > 0
+      ? reopenTimelineEntries[
+          reopenTimelineEntries.length - 1
+        ].note
+      : null;
+
+
+  /*
+   * Badge label/color are computed separately from
+   * `displayStatus` so the progress bar can keep treating a
+   * reopened complaint as "Repair Completed" internally
+   * while the badge itself still honestly says "Reopened".
+   */
+  const badgeLabel = isReopened
+    ? reopenPending
+      ? "Reopened (Pending Review)"
+      : "Reopened"
+    : displayStatus;
+
+  const badgeColorClass = isReopened
+    ? reopenPending
+      ? "bg-warning text-dark"
+      : "bg-info text-dark"
+    : rejected
+    ? "bg-danger"
+    : displayStatus === "Closed"
+    ? "bg-dark"
+    : displayStatus === "Repair Completed"
+    ? "bg-success"
+    : displayStatus === "In Progress"
+    ? "bg-primary"
+    : displayStatus === "Assigned"
+    ? "bg-primary"
+    : displayStatus === "Under Review"
+    ? "bg-info text-dark"
+    : "bg-secondary";
+
+
+  /*
    * Manager-conflict complaint:
    *
    * The authorized alternative is assigned by the admin.
@@ -146,25 +237,11 @@ function ComplaintTimeline({
             </small>
           </div>
 
-          {displayStatus && (
+          {badgeLabel && (
             <span
-              className={`badge rounded-pill px-3 py-2 ${
-                rejected
-                  ? "bg-danger"
-                  : displayStatus === "Closed"
-                  ? "bg-dark"
-                  : displayStatus === "Repair Completed"
-                  ? "bg-success"
-                  : displayStatus === "In Progress"
-                  ? "bg-primary"
-                  : displayStatus === "Assigned"
-                  ? "bg-primary"
-                  : displayStatus === "Under Review"
-                  ? "bg-info text-dark"
-                  : "bg-secondary"
-              }`}
+              className={`badge rounded-pill px-3 py-2 ${badgeColorClass}`}
             >
-              {displayStatus}
+              {badgeLabel}
             </span>
           )}
 
@@ -281,11 +358,12 @@ function ComplaintTimeline({
                         >
                           {stage}
 
-                          {isCurrent && (
-                            <span className="badge bg-primary ms-2">
-                              Current
-                            </span>
-                          )}
+                          {isCurrent &&
+                            !isReopened && (
+                              <span className="badge bg-primary ms-2">
+                                Current
+                              </span>
+                            )}
                         </div>
 
 
@@ -318,6 +396,85 @@ function ComplaintTimeline({
         </div>
 
       </div>
+
+
+      {/* =====================================================
+          REOPENED
+      ===================================================== */}
+
+      {isReopened && (
+
+        <div
+          className={`card shadow-sm mb-4 ${
+            reopenPending
+              ? "border-warning"
+              : "border-info"
+          }`}
+        >
+
+          <div className="card-body p-4">
+
+            <div className="d-flex align-items-start gap-3">
+
+              <div
+                className={`rounded-circle bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0 ${
+                  reopenPending
+                    ? "bg-warning text-warning"
+                    : "bg-info text-info"
+                }`}
+                style={{
+                  width: "46px",
+                  height: "46px",
+                  fontSize: "20px",
+                }}
+              >
+                <i className="bi bi-arrow-repeat" />
+              </div>
+
+
+              <div className="flex-grow-1">
+
+                <h6 className="mb-1">
+                  Complaint Reopened
+                </h6>
+
+                <p className="text-muted mb-3">
+                  {reopenPending
+                    ? "This complaint was reopened by the resident because the issue was not fully resolved. It is currently awaiting review by the System Administrator."
+                    : "This complaint was reopened by the resident because the issue was not fully resolved. The System Administrator approved the reopening and work can resume on it."}
+                </p>
+
+                {latestReopenNote && (
+
+                  <div
+                    className={`alert mb-0 ${
+                      reopenPending
+                        ? "alert-warning"
+                        : "alert-info"
+                    }`}
+                  >
+
+                    <strong className="d-block mb-1">
+                      {reopenPending
+                        ? "Status:"
+                        : "Note from the System Administrator:"}
+                    </strong>
+
+                    {latestReopenNote}
+
+                  </div>
+
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
 
       {/* =====================================================

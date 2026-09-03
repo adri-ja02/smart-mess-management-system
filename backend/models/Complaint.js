@@ -159,12 +159,7 @@ const complaintSchema = new mongoose.Schema(
 
     urgency: {
       type: String,
-      enum: [
-        "Low",
-        "Medium",
-        "High",
-        "Emergency",
-      ],
+      enum: ["Low", "Medium", "High", "Emergency"],
       default: "Low",
     },
 
@@ -315,28 +310,6 @@ const complaintSchema = new mongoose.Schema(
 
     /*
      * =====================================================
-     * WITHDRAWAL HISTORY
-     * =====================================================
-     *
-     * Used by Maliha's credibility screening.
-     */
-
-    withdrawalHistory: [
-      {
-        withdrawnAt: {
-          type: Date,
-          default: Date.now,
-        },
-
-        reason: {
-          type: String,
-          default: "",
-        },
-      },
-    ],
-
-    /*
-     * =====================================================
      * ADMIN SITE INSPECTION
      * =====================================================
      */
@@ -380,12 +353,7 @@ const complaintSchema = new mongoose.Schema(
 
     priority: {
       type: String,
-      enum: [
-        "Low",
-        "Medium",
-        "High",
-        "Emergency",
-      ],
+      enum: ["Low", "Medium", "High", "Emergency"],
       default: "Low",
     },
 
@@ -397,12 +365,7 @@ const complaintSchema = new mongoose.Schema(
     assignedTo: {
       type: {
         type: String,
-        enum: [
-          "Plumber",
-          "Technician",
-          "Mechanic",
-          "Other",
-        ],
+        enum: ["Plumber", "Technician", "Mechanic", "Other"],
         default: null,
       },
 
@@ -438,11 +401,7 @@ const complaintSchema = new mongoose.Schema(
     repairVerification: {
       status: {
         type: String,
-        enum: [
-          "Pending",
-          "Confirmed",
-          "Reopened",
-        ],
+        enum: ["Pending", "Confirmed", "Reopened"],
         default: "Pending",
       },
 
@@ -482,6 +441,103 @@ const complaintSchema = new mongoose.Schema(
 
     /*
      * =====================================================
+     * REOPEN REVIEW
+     * =====================================================
+     *
+     * IMPORTANT:
+     * This does NOT replace the existing complaint status
+     * or reviewDecision logic.
+     *
+     * When a resident reopens a complaint:
+     *
+     * Resident
+     *    ↓
+     * Reopen requested
+     *    ↓
+     * Admin reviews reopening
+     *    ↓
+     * Approved
+     *    ↓
+     * Manager can work on complaint again
+     *
+     * If rejected:
+     * complaint remains in its previous closed state.
+     *
+     * This is intentionally separate from reviewDecision
+     * because reviewDecision belongs to the original
+     * complaint integrity review.
+     *
+     * While requested === true and decision is not
+     * "approved", the Mess Manager is blocked from
+     * accessing this complaint (see getComplaintsForManager
+     * / getComplaintByIdForManager).
+     */
+
+    reopenReview: {
+      requested: {
+        type: Boolean,
+        default: false,
+      },
+
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * Resident's reason for reopening.
+       */
+      reason: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      /*
+       * Admin decision:
+       *
+       * null     = waiting for admin
+       * approved = admin approved reopening
+       * rejected = admin rejected reopening
+       */
+      decision: {
+        type: String,
+        enum: ["approved", "rejected"],
+        default: null,
+      },
+
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * Admin's explanation for approving/rejecting
+       * the reopening request.
+       */
+      reviewNote: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      /*
+       * Number of times this complaint has been reopened.
+       *
+       * This allows the same complaint to go through:
+       *
+       * resolve → reopen → admin review → manager
+       *
+       * more than once.
+       */
+      cycle: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    /*
+     * =====================================================
      * TIMELINE
      * =====================================================
      */
@@ -493,7 +549,4 @@ const complaintSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "Complaint",
-  complaintSchema
-);
+module.exports = mongoose.model("Complaint", complaintSchema);

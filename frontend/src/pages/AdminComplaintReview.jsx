@@ -10,6 +10,7 @@ import {
 import {
   getComplaintByIdForAdmin,
   submitReviewDecision,
+  reviewReopenRequest,
   requestSiteInspection,
   askReviewQuestion,
   assignAuthorizedAlternative,
@@ -303,6 +304,16 @@ function AdminComplaintReview() {
 
 
   /* =======================================================
+     REOPEN REVIEW
+
+     No dedicated note state here — Approve/Reject reuse
+     `decisionNote` (the same note set via the "Set Note"
+     button used for Final Decisions) so the admin sets the
+     note once and it is shown to the resident.
+  ======================================================= */
+
+
+  /* =======================================================
      MANAGER CONCERN
   ======================================================= */
 
@@ -513,6 +524,22 @@ function AdminComplaintReview() {
         return;
       }
 
+      if (
+        isFinalDecisionButtonLocked(
+          decision
+        )
+      ) {
+
+        setError(
+          decision === "Valid" &&
+          reopenApproved
+            ? "This complaint's reopening was already approved, which counts as Valid. The Valid decision cannot be set again."
+            : "This final decision is currently locked."
+        );
+
+        return;
+      }
+
       try {
 
         setError("");
@@ -561,6 +588,55 @@ function AdminComplaintReview() {
         );
 
         await loadComplaint();
+      }
+    };
+
+
+  /* =========================================================
+     REOPEN REVIEW
+
+     Separate from the original review decision. Until this
+     is approved, the Mess Manager cannot access the
+     complaint again.
+
+     NOTE: this reuses the same "Set Note" note
+     (decisionNote) that is already used for the Final
+     Decision buttons, instead of a separate note field.
+     The admin sets the note first (Set Note button), then
+     clicks Approve/Reject directly — the resident sees
+     whatever note was set before the click.
+========================================================= */
+
+  const handleReopenReview =
+    async (
+      decision
+    ) => {
+
+      try {
+
+        setError("");
+
+        await reviewReopenRequest(
+          id,
+          decision,
+          decisionNote.trim() ||
+            (decision === "approved"
+              ? "System Administrator approved the reopening."
+              : "System Administrator rejected the reopening.")
+        );
+
+        setDecisionNote("");
+        setNoteSet(false);
+
+        await loadComplaint();
+
+      } catch (err) {
+
+        setError(
+          err.response?.data
+            ?.message ||
+          "Failed to save reopen review decision."
+        );
       }
     };
 
@@ -1121,9 +1197,59 @@ function AdminComplaintReview() {
      FINAL DECISION LOCK
 ========================================================= */
 
+  const reopenReviewPending =
+    Boolean(
+      complaint.reopenReview
+        ?.requested
+    );
+
+  /*
+   * The current reopen cycle has already been approved
+   * by the System Administrator (complaint.status is
+   * "Reopened" and the pending flag has been cleared).
+   *
+   * Once this is true, approving the reopening already
+   * carries the same weight as the original "Valid"
+   * click, so the admin does not need (and cannot) press
+   * Valid again. Every other final decision button, Set
+   * Note, and the rest of the workflow (assign authorized
+   * alternative for manager-concern complaints, etc.)
+   * continue to work exactly as before.
+   */
+  const reopenApproved =
+    complaint.status ===
+      "Reopened" &&
+    !reopenReviewPending &&
+    complaint.reopenReview
+      ?.decision === "approved";
+
   const finalDecisionLocked =
     activeWorkOrder ||
-    isClosed;
+    isClosed ||
+    reopenReviewPending;
+
+  /*
+   * Only the Valid button is locked once a reopening has
+   * been approved (approving already counts as Valid).
+   * The other final decision buttons stay governed by the
+   * regular `finalDecisionLocked` rule.
+   */
+  const isFinalDecisionButtonLocked = (
+    decision
+  ) =>
+    finalDecisionLocked ||
+    (decision === "Valid" &&
+      reopenApproved);
+
+  /*
+   * Lock for the Set Note control specifically. It
+   * behaves the same as before and stays usable after an
+   * approved reopening.
+   */
+  const noteLocked =
+    activeWorkOrder ||
+    isClosed ||
+    reopenReviewPending;
 
 
   /* =========================================================
@@ -1238,11 +1364,80 @@ function AdminComplaintReview() {
             <br />
 
             The resident reopened this
-            complaint. The administrator
-            can review it again, make a
-            new final decision, and assign
-            an authorized alternative
-            again.
+            complaint because the issue
+            was not fully resolved.
+            {complaint.reopenReview
+              ?.requested
+              ? " It is pending your review."
+              : " You have already reviewed this reopening."}
+
+          </div>
+        )}
+
+
+        {/* REOPEN REVIEW - PENDING ADMIN DECISION */}
+
+        {complaint.reopenReview
+          ?.requested && (
+
+          <div className="card mb-3 border-warning">
+
+            <div className="card-body">
+
+              <h5 className="card-title">
+                Review Reopening
+              </h5>
+
+              <p className="text-muted">
+                Resident's reason for
+                reopening:{" "}
+                {complaint.reopenReview
+                  .reason ||
+                  "No reason provided."}
+              </p>
+
+              {decisionNote.trim() && (
+
+                <div className="mb-3">
+
+                  <strong className="d-block mb-1">
+                    Note that will be
+                    shown to the resident:
+                  </strong>
+
+                  <div className="border rounded p-2 bg-light small">
+                    {decisionNote}
+                  </div>
+
+                </div>
+
+              )}
+
+              <button
+                type="button"
+                className="btn btn-success me-2"
+                onClick={() =>
+                  handleReopenReview(
+                    "approved"
+                  )
+                }
+              >
+                Approve Reopening
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-outline-danger"
+                onClick={() =>
+                  handleReopenReview(
+                    "rejected"
+                  )
+                }
+              >
+                Reject Reopening
+              </button>
+
+            </div>
 
           </div>
         )}
@@ -1814,8 +2009,7 @@ function AdminComplaintReview() {
                   )
                 }
                 disabled={
-                  isClosed ||
-                  finalDecisionLocked
+                  noteLocked
                 }
               />
 
@@ -1831,8 +2025,7 @@ function AdminComplaintReview() {
                 handleSetNote
               }
               disabled={
-                isClosed ||
-                finalDecisionLocked
+                noteLocked
               }
             >
               Set Note
@@ -1856,10 +2049,9 @@ function AdminComplaintReview() {
                     className={`btn ${getDecisionButtonClass(
                       decision
                     )}`}
-                    disabled={
-                      isClosed ||
-                      finalDecisionLocked
-                    }
+                    disabled={isFinalDecisionButtonLocked(
+                      decision
+                    )}
                     onClick={() =>
                       handleDecision(
                         decision
@@ -1882,6 +2074,24 @@ function AdminComplaintReview() {
                 This complaint is closed.
                 Final decision buttons are
                 disabled.
+
+              </div>
+
+            )}
+
+
+            {!isClosed &&
+              reopenApproved && (
+
+              <div className="alert alert-warning mt-3 mb-0">
+
+                This complaint's reopening was
+                already approved, which counts
+                as the Valid decision. The
+                <strong> Valid </strong>
+                button is locked, but Insufficient
+                Evidence, Duplicate, Confirmed
+                False, and Set Note still work.
 
               </div>
 
@@ -2008,10 +2218,19 @@ function AdminComplaintReview() {
                 </div>
 
               ) : complaint.alternativeHandler
-                ?.name ? (
+                ?.name &&
+                !reopenApproved ? (
 
                 /*
                  * ALREADY ASSIGNED
+                 *
+                 * NOTE: if the resident reopened this
+                 * complaint and the System Administrator
+                 * approved the reopening, we fall through
+                 * to the assignment form below instead —
+                 * the same process as the original "click
+                 * Valid" flow runs again so the admin can
+                 * (re)assign the authorized alternative.
                  */
 
                 <div className="alert alert-info mb-0">
@@ -2086,9 +2305,9 @@ function AdminComplaintReview() {
 
                   <p className="text-muted small">
 
-                    The complaint has been marked
-                    Valid. You may now assign an
-                    authorized alternative.
+                    {reopenApproved
+                      ? "The resident reopened this complaint and the reopening has been approved. You may assign an authorized alternative again, same as when the complaint was first marked Valid."
+                      : "The complaint has been marked Valid. You may now assign an authorized alternative."}
 
                   </p>
 

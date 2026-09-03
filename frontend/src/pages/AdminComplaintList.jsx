@@ -32,14 +32,14 @@ const FINAL_DECISIONS = [
    1. Final decision exists
       → show final decision.
 
-   2. Review activity has actually started
+   2. Actual review activity exists
       → show Under Review.
 
-   3. Manager concern by itself
+   3. Manager concern alone
       → DOES NOT mean Under Review.
 
-   4. Authorized alternative by itself
-      → DOES NOT determine initial review state.
+   4. Reopened alone
+      → DOES NOT mean Under Review.
 
    5. Untouched complaint
       → Not Reviewed.
@@ -48,6 +48,11 @@ const FINAL_DECISIONS = [
 const getReviewDecisionLabel = (
   complaint
 ) => {
+
+  if (!complaint) {
+    return "Not Reviewed";
+  }
+
 
   /* -------------------------------------------------------
      FINAL DECISION HAS HIGHEST PRIORITY
@@ -64,8 +69,7 @@ const getReviewDecisionLabel = (
 
   /* -------------------------------------------------------
      FALLBACK:
-     Sometimes backend may store the final decision
-     in status instead of reviewDecision.
+     Backend may store final decision in status.
   ------------------------------------------------------- */
 
   if (
@@ -83,7 +87,7 @@ const getReviewDecisionLabel = (
 
   if (
     complaint.reviewDecision ===
-      "Under Review"
+    "Under Review"
   ) {
     return "Under Review";
   }
@@ -92,7 +96,8 @@ const getReviewDecisionLabel = (
   /* -------------------------------------------------------
      SITE INSPECTION
 
-     Requesting site inspection means review has started.
+     Requesting site inspection means admin
+     has actually started review activity.
   ------------------------------------------------------- */
 
   const hasSiteInspectionRequest =
@@ -104,8 +109,8 @@ const getReviewDecisionLabel = (
   /* -------------------------------------------------------
      CONFIDENTIAL REVIEW QUESTION
 
-     Sending at least one confidential question means
-     review has started.
+     Sending a confidential question means
+     admin has started review activity.
   ------------------------------------------------------- */
 
   const hasReviewQuestion =
@@ -116,9 +121,15 @@ const getReviewDecisionLabel = (
 
 
   /* -------------------------------------------------------
-     ACTIVE REVIEW STATUSES
+     ACTIVE PROCESSING STATUSES
 
-     These statuses indicate that processing has started.
+     IMPORTANT:
+
+     "Reopened" is intentionally NOT included.
+
+     A reopened complaint must initially remain
+     "Not Reviewed" until the admin takes a new
+     review action.
   ------------------------------------------------------- */
 
   const activeReviewStatuses = [
@@ -127,8 +138,8 @@ const getReviewDecisionLabel = (
     "Assigned",
     "In Progress",
     "Repair Completed",
-    "Reopened",
   ];
+
 
   const isActiveReviewStatus =
     activeReviewStatuses.includes(
@@ -139,10 +150,12 @@ const getReviewDecisionLabel = (
   /* -------------------------------------------------------
      TIMELINE REVIEW ACTIVITY
 
-     Check only actual review/processing events.
+     These events indicate that review/processing
+     has actually happened.
 
      IMPORTANT:
-     Do NOT use concernsManager here.
+     - concernsManager is NOT checked.
+     - Reopened is NOT checked by itself.
   ------------------------------------------------------- */
 
   const hasReviewTimelineActivity =
@@ -157,7 +170,6 @@ const getReviewDecisionLabel = (
           "Assigned",
           "In Progress",
           "Repair Completed",
-          "Reopened",
           "Valid",
           "Duplicate",
           "Insufficient Evidence",
@@ -183,17 +195,25 @@ const getReviewDecisionLabel = (
 
 
   /* -------------------------------------------------------
-     MANAGER CONCERN ALONE DOES NOT START REVIEW
+     REOPENED BUT NOT REVIEWED
+
+     IMPORTANT:
+
+     Reopened alone must remain Not Reviewed.
 
      Example:
 
-     Status: Submitted
-     concernsManager: true
-     reviewDecision: empty
+     Status:
+     Reopened
+
+     concernsManager:
+     true
+
+     reviewDecision:
+     null
 
      Result:
-
-     Review Decision: Not Reviewed
+     Not Reviewed
   ------------------------------------------------------- */
 
   return "Not Reviewed";
@@ -283,11 +303,16 @@ const getStatusBadgeClass = (
 
 
     /* -----------------------------------------------------
-       REVIEW / NEEDS ATTENTION
+       REOPENED
     ----------------------------------------------------- */
 
     case "reopened":
       return "bg-warning text-dark";
+
+
+    /* -----------------------------------------------------
+       REVIEW / NEEDS ATTENTION
+    ----------------------------------------------------- */
 
     case "insufficient evidence":
       return "bg-warning text-dark";
@@ -431,7 +456,6 @@ function AdminComplaintList() {
   if (loading) {
 
     return (
-
       <div className="container mt-4">
 
         <p>
@@ -440,7 +464,6 @@ function AdminComplaintList() {
         </p>
 
       </div>
-
     );
   }
 
@@ -463,12 +486,16 @@ function AdminComplaintList() {
         style={{
           border:
             "2px solid #f39c12",
+
           borderRadius:
             "12px",
+
           padding:
             "16px 20px",
+
           background:
             "linear-gradient(135deg, #fff3e0, #ffe0b2)",
+
           boxShadow:
             "0 4px 10px rgba(243, 156, 18, 0.15)",
         }}
@@ -508,20 +535,28 @@ function AdminComplaintList() {
           style={{
             background:
               "linear-gradient(135deg, #f39c12, #e67e22)",
+
             color:
               "#fff",
+
             border:
               "none",
+
             borderRadius:
               "8px",
+
             padding:
               "10px 18px",
+
             fontWeight:
               "600",
+
             whiteSpace:
               "nowrap",
+
             marginLeft:
               "20px",
+
             boxShadow:
               "0 3px 6px rgba(230, 126, 34, 0.25)",
           }}
@@ -579,6 +614,20 @@ function AdminComplaintList() {
               );
 
 
+            /* =============================================
+               REOPENED
+            ============================================= */
+
+            const isReopened =
+              complaint.status ===
+              "Reopened";
+
+
+            const isClosed =
+              complaint.status ===
+              "Closed";
+
+
             return (
 
               <div
@@ -589,8 +638,11 @@ function AdminComplaintList() {
                 style={{
                   borderRadius:
                     "10px",
+
                   border:
-                    "1px solid #e5e5e5",
+                    isReopened
+                      ? "2px solid #f39c12"
+                      : "1px solid #e5e5e5",
                 }}
               >
 
@@ -620,8 +672,10 @@ function AdminComplaintList() {
                       style={{
                         padding:
                           "7px 12px",
+
                         borderRadius:
                           "20px",
+
                         fontSize:
                           "0.85rem",
                       }}
@@ -632,6 +686,71 @@ function AdminComplaintList() {
                     </span>
 
                   </div>
+
+
+                  {/* =======================================
+                      REOPENED NOTICE
+                  ======================================= */}
+
+                  {isReopened && (
+
+                    <div
+                      className="alert alert-warning"
+                      style={{
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
+
+                      <strong>
+                        Complaint Reopened
+                      </strong>
+
+                      <br />
+
+                      The resident reopened this
+                      complaint. It requires a
+                      new administrator review.
+
+                      <br />
+
+                      <strong>
+                        Current Review Decision:
+                      </strong>{" "}
+
+                      {reviewDecision}
+
+                    </div>
+
+                  )}
+
+
+                  {/* =======================================
+                      CLOSED NOTICE
+                  ======================================= */}
+
+                  {isClosed && (
+
+                    <div
+                      className="alert alert-secondary"
+                      style={{
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
+
+                      <strong>
+                        Complaint Closed
+                      </strong>
+
+                      <br />
+
+                      This complaint has been
+                      closed.
+
+                    </div>
+
+                  )}
 
 
                   {/* =======================================
@@ -700,8 +819,10 @@ function AdminComplaintList() {
                       style={{
                         padding:
                           "7px 12px",
+
                         borderRadius:
                           "20px",
+
                         fontSize:
                           "0.85rem",
                       }}
@@ -716,13 +837,11 @@ function AdminComplaintList() {
 
                   {/* =======================================
                       MANAGER CONFLICT
-                      
+
                       IMPORTANT:
-                      This does NOT change Review Decision.
-                      
-                      Submitted + Manager Concern
-                      =
-                      Not Reviewed
+
+                      Manager concern does NOT automatically
+                      mean Under Review.
                   ======================================= */}
 
                   {complaint.concernsManager && (
@@ -740,10 +859,21 @@ function AdminComplaintList() {
                       </strong>{" "}
 
                       This complaint concerns
-                      the Mess Manager and must
-                      be routed to an authorized
-                      alternative after the
-                      complaint is marked Valid.
+                      the Mess Manager.
+
+                      <br />
+
+                      It must be reviewed by the
+                      System Administrator.
+
+                      <br />
+
+                      If the complaint is marked
+                      <strong>
+                        {" "}Valid
+                      </strong>
+                      , it can be routed to an
+                      authorized alternative.
 
                     </div>
 
@@ -802,12 +932,23 @@ function AdminComplaintList() {
 
                   {/* =======================================
                       UNDER REVIEW MESSAGE
+
+                      IMPORTANT:
+
+                      This will NOT appear merely because
+                      the complaint was reopened.
                   ======================================= */}
 
                   {reviewDecision ===
                     "Under Review" && (
 
-                    <div className="alert alert-warning py-2">
+                    <div
+                      className="alert alert-warning py-2"
+                      style={{
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
 
                       <strong>
                         Review in Progress:
@@ -816,6 +957,78 @@ function AdminComplaintList() {
                       This complaint is currently
                       being reviewed or processed by
                       the System Administrator.
+
+                    </div>
+
+                  )}
+
+
+                  {/* =======================================
+                      NOT REVIEWED MESSAGE
+
+                      Particularly useful for reopened
+                      complaints waiting for admin action.
+                  ======================================= */}
+
+                  {reviewDecision ===
+                    "Not Reviewed" && (
+
+                    <div
+                      className={
+                        isReopened
+                          ? "alert alert-warning py-2"
+                          : "alert alert-secondary py-2"
+                      }
+                      style={{
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
+
+                      <strong>
+                        Not Reviewed:
+                      </strong>{" "}
+
+                      {isReopened
+                        ? "This reopened complaint is waiting for a new administrator review."
+                        : "No administrator review action has been recorded yet."}
+
+                    </div>
+
+                  )}
+
+
+                  {/* =======================================
+                      FINAL DECISION MESSAGE
+                  ======================================= */}
+
+                  {FINAL_DECISIONS.includes(
+                    reviewDecision
+                  ) && (
+
+                    <div
+                      className={`alert ${
+                        reviewDecision ===
+                        "Valid"
+                          ? "alert-success"
+                          : reviewDecision ===
+                            "Confirmed False"
+                          ? "alert-danger"
+                          : "alert-secondary"
+                      } py-2`}
+                      style={{
+                        borderRadius:
+                          "8px",
+                      }}
+                    >
+
+                      <strong>
+                        Final Review Decision:
+                      </strong>{" "}
+
+                      {
+                        reviewDecision
+                      }
 
                     </div>
 
@@ -836,13 +1049,19 @@ function AdminComplaintList() {
                     style={{
                       borderRadius:
                         "8px",
+
                       padding:
                         "9px 18px",
+
                       fontWeight:
                         "600",
                     }}
                   >
-                    Open Admin Review
+
+                    {isReopened
+                      ? "Review Reopened Complaint"
+                      : "Open Admin Review"}
+
                   </button>
 
 

@@ -24,8 +24,8 @@ const {
   uploadCompletionEvidence,
 
   reviewComplaintDecision,
+  reviewReopenRequest,
   requestSiteInspection,
-  withdrawComplaint,
 
   getComplaintAnalytics,
 } = require("../controllers/complaint.Controller");
@@ -140,6 +140,17 @@ router.put(
   assignAuthorizedAlternative
 );
 
+/*
+ * Admin approves/rejects a resident's reopen request.
+ * Only after approval can the Mess Manager access the
+ * complaint again.
+ */
+router.put(
+  "/admin/:id/reopen-review",
+  protect,
+  reviewReopenRequest
+);
+
 /* =========================================================
    MANAGER - VALID WORK ORDERS ONLY
 ========================================================= */
@@ -208,12 +219,6 @@ router.put(
   "/:id/inspection",
   protect,
   requestSiteInspection
-);
-
-router.put(
-  "/:id/withdraw",
-  protect,
-  withdrawComplaint
 );
 
 module.exports = router;
