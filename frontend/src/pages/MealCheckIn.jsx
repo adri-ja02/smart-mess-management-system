@@ -52,14 +52,9 @@ const mealTypeLabels = {
   dinner: "Dinner",
 };
 
-/*
- * Meal icons removed.
- */
-const mealTypeIcons = {
-  breakfast: "",
-  lunch: "",
-  dinner: "",
-};
+/* =========================================================
+   STATUS HELPERS
+   ========================================================= */
 
 const statusChoices = [
   {
@@ -97,6 +92,10 @@ const formatTime = (value) =>
         minute: "2-digit",
       })
     : null;
+
+/* =========================================================
+   RESIDENT LABEL
+   ========================================================= */
 
 /* =========================================================
    RESIDENT LABEL

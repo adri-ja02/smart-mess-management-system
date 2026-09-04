@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback,useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import CampusRouteMap from "../components/CampusRouteMap";
@@ -172,7 +172,7 @@ const RoomDetails = () => {
      CHECK STUDENT ELIGIBILITY
   ========================================================= */
 
-  const checkEligibility = async (
+  const checkEligibility =useCallback (async (
     isMounted = true
   ) => {
     if (!isStudent) {
@@ -230,7 +230,7 @@ const RoomDetails = () => {
         setCheckingEligibility(false);
       }
     }
-  };
+  },[isStudent]);
 
   /* =========================================================
      INITIAL ELIGIBILITY CHECK
