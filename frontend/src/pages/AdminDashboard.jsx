@@ -34,7 +34,7 @@ function AdminDashboard() {
   const [pendingManagers, setPendingManagers] =
     useState([]);
 
-  const [loading, setLoading] =
+  const [, setLoading] =
     useState(true);
 
 
