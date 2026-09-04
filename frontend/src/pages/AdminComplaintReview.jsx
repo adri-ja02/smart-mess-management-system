@@ -406,7 +406,7 @@ function AdminComplaintReview() {
 
     loadComplaint();
 
-  }, [id]);
+  }, [loadComplaint]);
 
 
   /* =========================================================
