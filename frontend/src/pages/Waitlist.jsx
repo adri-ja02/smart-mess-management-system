@@ -1,0 +1,868 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import {
+    getWaitlist,
+    cancelWaitlist,
+} from "../services/waitlistService";
+
+function Waitlist() {
+    const navigate = useNavigate();
+
+    const [waitlist, setWaitlist] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [actingId, setActingId] = useState(null);
+    const [currentTime, setCurrentTime] = useState(
+        Date.now()
+    );
+
+    // =======================================================
+    // LOAD WAITLIST
+    // =======================================================
+
+    const loadWaitlist = async (showLoading = false) => {
+        try {
+            if (showLoading) {
+                setLoading(true);
+            }
+
+            const data = await getWaitlist();
+
+            setWaitlist(data.waitlist || []);
+        } catch (error) {
+            console.error(
+                "Failed to load waitlist:",
+                error
+            );
+
+            if (showLoading) {
+                alert(
+                    error.response?.data?.message ||
+                    "Failed to load waitlist."
+                );
+            }
+        } finally {
+            if (showLoading) {
+                setLoading(false);
+            }
+        }
+    };
+
+    // =======================================================
+    // INITIAL LOAD + AUTO REFRESH
+    // =======================================================
+
+    useEffect(() => {
+        loadWaitlist(true);
+
+        const refreshInterval = setInterval(() => {
+            loadWaitlist(false);
+        }, 5000);
+
+        return () => {
+            clearInterval(refreshInterval);
+        };
+    }, []);
+
+    // =======================================================
+    // LIVE CLOCK
+    // =======================================================
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => {
+            clearInterval(timer);
+        };
+    }, []);
+
+    // =======================================================
+    // GET POSITION
+    // =======================================================
+
+    const getPosition = (item) => {
+        if (
+            item.position !== null &&
+            item.position !== undefined
+        ) {
+            return item.position;
+        }
+
+        return null;
+    };
+
+    // =======================================================
+    // ONLY MATCHED STUDENT CAN REQUEST
+    // =======================================================
+
+    const canRequest = (item) => {
+        return item.status === "matched";
+    };
+
+    // =======================================================
+    // CLAIM BED
+    // =======================================================
+
+    const handleClaim = (item) => {
+        if (!canRequest(item)) {
+            return;
+        }
+
+        navigate(
+            `/rooms/${item.room?._id}/request-bed`,
+            {
+                state: {
+                    bedNumber: item.bedNumber,
+                    roomNumber: item.room?.roomNumber,
+                    waitlistId: item._id,
+                },
+            }
+        );
+    };
+
+    // =======================================================
+    // LEAVE WAITLIST
+    // =======================================================
+
+    const handleLeave = async (id) => {
+        const confirmLeave = window.confirm(
+            "Are you sure you want to leave this waitlist?"
+        );
+
+        if (!confirmLeave) {
+            return;
+        }
+
+        setActingId(id);
+
+        try {
+            const res = await cancelWaitlist(id);
+
+            alert(
+                res.message ||
+                "You have left the waitlist."
+            );
+
+            await loadWaitlist(false);
+        } catch (error) {
+            alert(
+                error.response?.data?.message ||
+                "Failed to leave waitlist."
+            );
+
+            await loadWaitlist(false);
+        } finally {
+            setActingId(null);
+        }
+    };
+
+    // =======================================================
+    // FORMAT DATE
+    // =======================================================
+
+    const formatDateTime = (dateValue) => {
+        if (!dateValue) {
+            return "-";
+        }
+
+        const date = new Date(dateValue);
+
+        if (Number.isNaN(date.getTime())) {
+            return "-";
+        }
+
+        return date.toLocaleString("en-BD", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+        });
+    };
+
+    const formatJoinedDateTime = (createdAt) => {
+        return formatDateTime(createdAt);
+    };
+
+    // =======================================================
+    // COUNTDOWN
+    // =======================================================
+
+    const getRemainingTime = (matchedUntil) => {
+        if (!matchedUntil) {
+            return null;
+        }
+
+        const difference =
+            new Date(matchedUntil).getTime() -
+            currentTime;
+
+        if (difference <= 0) {
+            return "Expired";
+        }
+
+        const hours = Math.floor(
+            difference / (1000 * 60 * 60)
+        );
+
+        const minutes = Math.floor(
+            (difference % (1000 * 60 * 60)) /
+            (1000 * 60)
+        );
+
+        const seconds = Math.floor(
+            (difference % (1000 * 60)) /
+            1000
+        );
+
+        return `${hours}h ${minutes}m ${seconds}s`;
+    };
+
+    // =======================================================
+    // STATUS BADGE
+    // =======================================================
+
+    const getStatusClass = (status) => {
+        switch (status) {
+            case "matched":
+                return "bg-success";
+
+            case "allocated":
+                return "bg-primary";
+
+            case "waiting":
+                return "bg-warning text-dark";
+
+            case "expired":
+                return "bg-secondary";
+
+            case "cancelled":
+                return "bg-danger";
+
+            default:
+                return "bg-secondary";
+        }
+    };
+
+    // =======================================================
+    // GET MANAGER REJECTION MESSAGE
+    // =======================================================
+
+    const getManagerMessage = (item) => {
+        // Preferred field
+        if (
+            item.rejectionReason &&
+            item.rejectionReason.trim()
+        ) {
+            return item.rejectionReason.trim();
+        }
+
+        // Fallback for older records
+        if (
+            item.notificationMessage &&
+            item.notificationMessage.startsWith(
+                "Your waitlist request was rejected by the manager:"
+            )
+        ) {
+            return item.notificationMessage
+                .replace(
+                    "Your waitlist request was rejected by the manager:",
+                    ""
+                )
+                .trim();
+        }
+
+        return null;
+    };
+
+    // =======================================================
+    // PRIORITY TEXT
+    // =======================================================
+
+    const getPriorityText = (item) => {
+
+        // ---------------------------------------------------
+        // MATCHED
+        // ---------------------------------------------------
+
+        if (item.status === "matched") {
+            const remaining =
+                getRemainingTime(
+                    item.matchedUntil
+                );
+
+            if (remaining === "Expired") {
+                return (
+                    <div>
+                        <div className="text-danger fw-bold">
+                            Priority time expired
+                        </div>
+
+                        {item.matchedUntil && (
+                            <small className="text-muted d-block mt-1">
+                                Ended:{" "}
+                                {formatDateTime(
+                                    item.matchedUntil
+                                )}
+                            </small>
+                        )}
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <div className="text-success fw-bold">
+                        Your priority
+                    </div>
+
+                    <small className="text-success fw-semibold d-block mt-1">
+                        {remaining} remaining
+                    </small>
+
+                    {item.matchedUntil && (
+                        <small className="text-muted d-block mt-1">
+                            Ends:{" "}
+                            {formatDateTime(
+                                item.matchedUntil
+                            )}
+                        </small>
+                    )}
+                </div>
+            );
+        }
+
+        // ---------------------------------------------------
+        // WAITING
+        // ---------------------------------------------------
+
+        if (item.status === "waiting") {
+            const position =
+                getPosition(item);
+
+            return (
+                <div>
+                    <div className="text-warning fw-semibold">
+                        {position
+                            ? `Waiting — Rank #${position}`
+                            : "Waiting for your turn"}
+                    </div>
+
+                    <small className="text-muted d-block mt-1">
+                        Priority time has not started
+                    </small>
+                </div>
+            );
+        }
+
+        // ---------------------------------------------------
+        // ALLOCATED
+        // ---------------------------------------------------
+
+        if (item.status === "allocated") {
+            return (
+                <div>
+                    <div className="text-primary fw-semibold">
+                        Priority time ended
+                    </div>
+
+                    <small className="text-muted d-block mt-1">
+                        Request sent to manager
+                    </small>
+                </div>
+            );
+        }
+
+        // ---------------------------------------------------
+        // EXPIRED
+        // ---------------------------------------------------
+
+        if (item.status === "expired") {
+            return (
+                <div>
+                    <div className="text-danger fw-bold">
+                        Priority time expired
+                    </div>
+
+                    {item.matchedUntil ? (
+                        <small className="text-muted d-block mt-1">
+                            Expired:{" "}
+                            {formatDateTime(
+                                item.matchedUntil
+                            )}
+                        </small>
+                    ) : (
+                        <small className="text-muted d-block mt-1">
+                            Priority period has ended
+                        </small>
+                    )}
+                </div>
+            );
+        }
+
+        // ---------------------------------------------------
+        // CANCELLED / REJECTED
+        // ---------------------------------------------------
+
+        if (item.status === "cancelled") {
+            const managerMessage =
+                getManagerMessage(item);
+
+            if (managerMessage) {
+                return (
+                    <div>
+                        <div className="text-danger fw-semibold">
+                            Priority time ended
+                        </div>
+
+                        <small className="text-muted d-block mt-1">
+                            Waitlist request was rejected
+                        </small>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <div className="text-secondary fw-semibold">
+                        Priority time ended
+                    </div>
+
+                    <small className="text-muted d-block mt-1">
+                        Waitlist was cancelled
+                    </small>
+                </div>
+            );
+        }
+
+        // ---------------------------------------------------
+        // DEFAULT
+        // ---------------------------------------------------
+
+        return (
+            <div>
+                <span className="text-muted">
+                    Priority time not available
+                </span>
+            </div>
+        );
+    };
+
+    // =======================================================
+    // NOTIFICATION
+    // =======================================================
+
+    const getNotificationText = (item) => {
+
+        // ---------------------------------------------------
+        // CANCELLED
+        // ---------------------------------------------------
+
+        if (item.status === "cancelled") {
+            const managerMessage =
+                getManagerMessage(item);
+
+            if (managerMessage) {
+                return (
+                    <div className="text-danger">
+                        <div className="fw-semibold">
+                            Manager's message:
+                        </div>
+
+                        <div className="mt-1">
+                            {managerMessage}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <span className="text-muted">
+                    You left the waitlist.
+                </span>
+            );
+        }
+
+        // ---------------------------------------------------
+        // MATCHED
+        // ---------------------------------------------------
+
+        if (
+            item.status === "matched" &&
+            item.notified
+        ) {
+            return (
+                <span className="text-success">
+                    {item.notificationMessage ||
+                        "Bed is now available."}
+                </span>
+            );
+        }
+
+        // ---------------------------------------------------
+        // ALL OTHER STATES
+        // ---------------------------------------------------
+
+        return (
+            <span className="text-muted">
+                No notification yet
+            </span>
+        );
+    };
+
+    // =======================================================
+    // ACTION
+    // =======================================================
+
+    const renderAction = (item) => {
+        const isActing =
+            actingId === item._id;
+
+        // ---------------------------------------------------
+        // MATCHED
+        // ---------------------------------------------------
+
+        if (item.status === "matched") {
+            const remaining =
+                getRemainingTime(
+                    item.matchedUntil
+                );
+
+            const expired =
+                remaining === "Expired";
+
+            return (
+                <>
+                    <button
+                        type="button"
+                        className="btn btn-success btn-sm me-2"
+                        disabled={
+                            isActing ||
+                            expired
+                        }
+                        onClick={() =>
+                            handleClaim(item)
+                        }
+                    >
+                        {isActing
+                            ? "Sending..."
+                            : "Request This Bed"}
+                    </button>
+
+                    <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm"
+                        disabled={isActing}
+                        onClick={() =>
+                            handleLeave(
+                                item._id
+                            )
+                        }
+                    >
+                        {isActing
+                            ? "Please wait..."
+                            : "Leave"}
+                    </button>
+                </>
+            );
+        }
+
+        // ---------------------------------------------------
+        // WAITING
+        // ---------------------------------------------------
+
+        if (item.status === "waiting") {
+            const position =
+                getPosition(item);
+
+            return (
+                <>
+                    <span className="text-muted me-2">
+                        {position
+                            ? `Waiting for Rank #${position}`
+                            : "Waiting for your turn"}
+                    </span>
+
+                    <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm"
+                        disabled={isActing}
+                        onClick={() =>
+                            handleLeave(
+                                item._id
+                            )
+                        }
+                    >
+                        {isActing
+                            ? "Please wait..."
+                            : "Leave"}
+                    </button>
+                </>
+            );
+        }
+
+        // ---------------------------------------------------
+        // ALLOCATED
+        // ---------------------------------------------------
+
+        if (item.status === "allocated") {
+            return (
+                <span className="text-primary fw-bold">
+                    Request sent to manager
+                </span>
+            );
+        }
+
+        // ---------------------------------------------------
+        // EXPIRED
+        // ---------------------------------------------------
+
+        if (item.status === "expired") {
+            return (
+                <span className="text-muted">
+                    Priority expired
+                </span>
+            );
+        }
+
+        // ---------------------------------------------------
+        // CANCELLED / REJECTED
+        // ---------------------------------------------------
+
+        if (item.status === "cancelled") {
+            const managerMessage =
+                getManagerMessage(item);
+
+            if (managerMessage) {
+                return (
+                    <span className="badge bg-danger">
+                        Rejected
+                    </span>
+                );
+            }
+
+            return (
+                <span className="badge bg-secondary">
+                    Cancelled
+                </span>
+            );
+        }
+
+        return null;
+    };
+
+    // =======================================================
+    // LOADING
+    // =======================================================
+
+    if (loading) {
+        return (
+            <div className="container mt-4 text-center">
+
+                <div
+                    className="spinner-border"
+                    role="status"
+                />
+
+                <p className="mt-2">
+                    Loading waitlist...
+                </p>
+
+            </div>
+        );
+    }
+
+    // =======================================================
+    // RENDER
+    // =======================================================
+
+    return (
+        <div className="container mt-4">
+
+            <div className="d-flex justify-content-between align-items-center mb-4">
+
+                <div>
+                    <h2 className="mb-1">
+                        My Waitlist
+                    </h2>
+
+                    <p className="text-muted mb-0">
+                        Your rank determines when
+                        you can request the bed.
+                    </p>
+                </div>
+
+            </div>
+
+            {waitlist.length === 0 ? (
+
+                <div className="alert alert-info">
+                    You are not on any waitlist.
+                </div>
+
+            ) : (
+
+                <div className="table-responsive">
+
+                    <table className="table table-bordered table-hover align-middle">
+
+                        <thead className="table-dark">
+
+                            <tr>
+                                <th>Rank</th>
+                                <th>Building</th>
+                                <th>Room</th>
+                                <th>Bed</th>
+                                <th>Budget</th>
+                                <th>Joined Date & Time</th>
+                                <th>Status</th>
+                                <th>Priority Time</th>
+                                <th>Notification</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {waitlist.map((item) => {
+
+                                const position =
+                                    getPosition(item);
+
+                                return (
+                                    <tr
+                                        key={item._id}
+                                    >
+
+                                        {/* RANK */}
+
+                                        <td>
+                                            {position ? (
+                                                <span
+                                                    className={
+                                                        item.status ===
+                                                        "matched"
+                                                            ? "badge bg-success"
+                                                            : "badge bg-dark"
+                                                    }
+                                                >
+                                                    #{position}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted">
+                                                    -
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        {/* BUILDING */}
+
+                                        <td>
+                                            {item.room?.building?.name ||
+                                                item.room?.building ||
+                                                "-"}
+                                        </td>
+
+                                        {/* ROOM */}
+
+                                        <td>
+                                            {item.room?.roomNumber ||
+                                                "Any"}
+                                        </td>
+
+                                        {/* BED */}
+
+                                        <td>
+                                            {item.bedNumber}
+                                        </td>
+
+                                        {/* BUDGET */}
+
+                                        <td>
+                                            ৳
+                                            {item.budget ??
+                                                "-"}
+                                        </td>
+
+                                        {/* JOINED DATE & TIME */}
+
+                                        <td>
+                                            <span className="fw-semibold">
+                                                {formatJoinedDateTime(
+                                                    item.createdAt
+                                                )}
+                                            </span>
+                                        </td>
+
+                                        {/* STATUS */}
+
+                                        <td>
+                                            <span
+                                                className={`badge ${getStatusClass(
+                                                    item.status
+                                                )}`}
+                                            >
+                                                {item.status}
+                                            </span>
+                                        </td>
+
+                                        {/* PRIORITY TIME */}
+
+                                        <td
+                                            style={{
+                                                minWidth:
+                                                    "220px",
+                                            }}
+                                        >
+                                            {getPriorityText(
+                                                item
+                                            )}
+                                        </td>
+
+                                        {/* NOTIFICATION */}
+
+                                        <td
+                                            style={{
+                                                minWidth:
+                                                    "250px",
+                                            }}
+                                        >
+                                            {getNotificationText(
+                                                item
+                                            )}
+                                        </td>
+
+                                        {/* ACTION */}
+
+                                        <td
+                                            style={{
+                                                minWidth:
+                                                    "220px",
+                                            }}
+                                        >
+                                            {renderAction(
+                                                item
+                                            )}
+                                        </td>
+
+                                    </tr>
+                                );
+                            })}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            )}
+
+        </div>
+    );
+}
+
+export default Waitlist;
