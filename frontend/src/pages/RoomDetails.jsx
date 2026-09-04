@@ -244,7 +244,7 @@ const RoomDetails = () => {
     return () => {
       active = false;
     };
-  }, [user, isStudent]);
+  }, [checkEligibility]);
 
   /* =========================================================
      AUTOMATIC ELIGIBILITY REFRESH
@@ -265,7 +265,7 @@ const RoomDetails = () => {
       active = false;
       clearInterval(interval);
     };
-  }, [isStudent, user]);
+  }, [isStudent,checkEligibility]);
 
   /* =========================================================
      MANUAL ROOM REFRESH
