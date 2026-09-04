@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback,useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import roomService from "../services/roomService";
 
@@ -24,28 +24,28 @@ const RoomEdit = () => {
   // LOAD ROOM
   // =========================================================
 
-  useEffect(() => {
-    loadRoom();
-  }, [id]);
+ const loadRoom = useCallback(async () => {
+  try {
+    setLoading(true);
 
-  const loadRoom = async () => {
-    try {
-      setLoading(true);
+    const res = await roomService.getRoom(id);
 
-      const res = await roomService.getRoom(id);
+    setRoom(res.data.room);
+  } catch (err) {
+    console.error("Failed to load room:", err);
 
-      setRoom(res.data.room);
-    } catch (err) {
-      console.error("Failed to load room:", err);
+    alert(
+      err.response?.data?.message ||
+        "Failed to load room."
+    );
+  } finally {
+    setLoading(false);
+  }
+}, [id]);
 
-      alert(
-        err.response?.data?.message ||
-          "Failed to load room."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+useEffect(() => {
+  loadRoom();
+}, [loadRoom]);
 
   // =========================================================
   // BASIC INPUT
