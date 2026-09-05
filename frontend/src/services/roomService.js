@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5000/api/rooms";
+const API = `${process.env.REACT_APP_API_URL}/rooms`;
 
 const roomService = {
   // ================= ROOM =================
