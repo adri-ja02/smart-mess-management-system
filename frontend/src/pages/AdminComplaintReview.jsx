@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -298,7 +299,7 @@ function AdminComplaintReview() {
   ] = useState("");
 
   const [
-    noteSet,
+    ,
     setNoteSet,
   ] = useState(false);
 
@@ -357,7 +358,7 @@ function AdminComplaintReview() {
      LOAD COMPLAINT
   ========================================================= */
 
-  const loadComplaint =
+  const loadComplaint =useCallback(
     async () => {
 
       try {
@@ -396,14 +397,16 @@ function AdminComplaintReview() {
         setLoading(false);
 
       }
-    };
+    },
+    [id]
+  );
 
 
   useEffect(() => {
 
     loadComplaint();
 
-  }, [id]);
+  }, [loadComplaint]);
 
 
   /* =========================================================

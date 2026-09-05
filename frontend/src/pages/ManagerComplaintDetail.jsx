@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -173,7 +174,7 @@ function ManagerComplaintDetail() {
      was typing.
   ========================================================= */
 
-  const load = async () => {
+  const load =useCallback(async () => {
     try {
       setLoading(true);
 
@@ -241,11 +242,11 @@ function ManagerComplaintDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     load();
-  }, [id]);
+  }, [load]);
 
   /* =========================================================
      ASSIGN WORKER
